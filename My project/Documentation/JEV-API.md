@@ -47,7 +47,7 @@ Una sola richiesta in volo; target 2 Hz, senza recuperare richieste arretrate. S
 
 Backoff esponenziale su errori temporanei, con rispetto di `Retry-After` (secondi o data HTTP). Nessun retry immediato dello stesso frame: il tentativo successivo cattura una nuova immagine. Errori 400/401/402/403/404/413/422 sospendono l'API finché si riseleziona la modalità. Reset/cambio modalità invalidano le richieste pendenti; eventuali token riportati sono contabilizzati anche per risposte scartate.
 
-I rate limit ufficiali sono **per organizzazione** e consultabili nella [console](https://console.typesafe.ai/rate-limits); non è documentato un valore universale da codificare. Budget locale iniziale: 240 richieste e $0,05 stimati per sessione. Il limite di costo usa token effettivamente riportati e può superarsi del costo dell'ultima richiesta. Non sostituisce un limite sul conto del provider.
+I rate limit ufficiali sono **per organizzazione** e consultabili nella [console](https://console.typesafe.ai/rate-limits); non è documentato un valore universale da codificare. Budget locale: 600 richieste e $0,05 stimati per sessione, così la pista mista più lunga non esaurisce il budget di chiamate durante un giro a 2 Hz. Il limite di costo usa token effettivamente riportati e può superarsi del costo dell'ultima richiesta. Non sostituisce un limite sul conto del provider.
 
 ## Prezzi e token
 

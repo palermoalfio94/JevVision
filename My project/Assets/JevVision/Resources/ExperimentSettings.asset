@@ -33,7 +33,7 @@ MonoBehaviour:
   timeoutSeconds: 8
   maximumDecisionAgeSeconds: 2
   maximumBackoffSeconds: 30
-  maximumApiCallsPerSession: 240
+  maximumApiCallsPerSession: 600
   maximumEstimatedCostUsd: 0.05
   inputUsdPerMillionTokens: 0.042
   outputUsdPerMillionTokens: 0
@@ -41,7 +41,7 @@ MonoBehaviour:
   pricingChecked: 2026-10-25
   offTrackGraceSeconds: 1.5
   stuckSeconds: 12
-  attemptTimeoutSeconds: 240
+  attemptTimeoutSeconds: 420
   severeCollisionImpulse: 1200
   checkpointCount: 16
   maximumAutomaticResets: 20

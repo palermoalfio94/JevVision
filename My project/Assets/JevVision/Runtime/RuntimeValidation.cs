@@ -31,6 +31,7 @@ namespace JevVision
         {
             public string utc, validation, mode, result, logDirectory;
             public double seconds, rmsCenterlineError, maximumCenterlineError, bestLapSeconds;
+            public float trackLengthMeters;
             public int laps, localLaps, jevLaps, manualLaps, resets, nextCheckpoint, apiCalls, localDecisions;
             public float accelerationSpeed, turnedDegrees, brakeSpeed;
             public string[] resetReasons;
@@ -122,6 +123,7 @@ namespace JevVision
             var report = new Report { utc = DateTime.UtcNow.ToString("O"), validation = validationMode, mode = controller.Mode.ToString(),
                 result = passed && frameValid && logsValid ? "PASS" : "FAIL", logDirectory = logger.SessionDirectory,
                 seconds = experiment.Elapsed, laps = experiment.Laps, localLaps = experiment.LocalLaps, jevLaps = experiment.JevLaps, manualLaps = experiment.ManualLaps,
+                trackLengthMeters = experiment.track.Length,
                 resets = experiment.Resets, nextCheckpoint = experiment.NextCheckpoint, apiCalls = controller.ApiCalls, localDecisions = controller.LocalDecisions,
                 rmsCenterlineError = Math.Sqrt(experiment.SumSquaredCenterlineError / Math.Max(1, experiment.EvaluationSamples)), maximumCenterlineError = experiment.MaximumCenterlineError,
                 bestLapSeconds = experiment.BestLapSeconds, accelerationSpeed = accelerationSpeed, turnedDegrees = turnedDegrees, brakeSpeed = brakeSpeed,
@@ -131,6 +133,7 @@ namespace JevVision
             File.WriteAllText(Path.Combine(logger.SessionDirectory, "report.json"), JsonUtility.ToJson(report, true));
             if (capture.LastJpeg != null) File.WriteAllBytes(Path.Combine(logger.SessionDirectory, "front-final.jpg"), capture.LastJpeg);
             SaveOverview(Path.Combine(logger.SessionDirectory, "overview-final.png"));
+            SaveOverview(Path.Combine(logger.SessionDirectory, "circuit-plan.png"), true);
             Debug.Log("JEV_VISION_VALIDATION " + JsonUtility.ToJson(report));
             StartCoroutine(QuitAfterScreenshot(report.result == "PASS" ? 0 : 2));
         }
@@ -145,10 +148,19 @@ namespace JevVision
             }
             return high - low > 24;
         }
-        private static void SaveOverview(string path)
+        private static void SaveOverview(string path, bool plan = false)
         {
             Camera camera = Camera.main;
             if (camera == null) return;
+            Vector3 oldPosition = camera.transform.position;
+            Quaternion oldRotation = camera.transform.rotation;
+            bool oldOrthographic = camera.orthographic;
+            float oldSize = camera.orthographicSize;
+            if (plan)
+            {
+                camera.transform.SetPositionAndRotation(new Vector3(0, 150, 0), Quaternion.Euler(90, 0, 0));
+                camera.orthographic = true; camera.orthographicSize = 85;
+            }
             var target = new RenderTexture(1440, 900, 24, RenderTextureFormat.ARGB32);
             var texture = new Texture2D(1440, 900, TextureFormat.RGB24, false);
             RenderTexture previous = RenderTexture.active;
@@ -163,6 +175,8 @@ namespace JevVision
             finally
             {
                 RenderTexture.active = previous; target.Release(); Destroy(target); Destroy(texture);
+                camera.transform.SetPositionAndRotation(oldPosition, oldRotation);
+                camera.orthographic = oldOrthographic; camera.orthographicSize = oldSize;
             }
         }
         private System.Collections.IEnumerator QuitAfterScreenshot(int exitCode)

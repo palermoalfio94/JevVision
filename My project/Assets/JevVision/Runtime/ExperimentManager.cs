@@ -26,6 +26,7 @@ namespace JevVision
         public long EvaluationSamples { get; private set; }
         public float MaximumCenterlineError { get; private set; }
         public string LastResetReason { get; private set; } = "none";
+        public string SceneError { get; private set; } = "";
         public double Elapsed => Time.realtimeSinceStartupAsDouble - started;
         private double started;
         private float offRoadTime, stuckTime;
@@ -36,6 +37,13 @@ namespace JevVision
         private void Awake() => started = Time.realtimeSinceStartupAsDouble;
         private void Start()
         {
+            if (!track.GeometryMatchesSettings)
+            {
+                SceneError = "Scena da rigenerare: JEV Vision > Create or rebuild circuit scene";
+                controller.SetPaused(true);
+                logger.RecordEvent("scene_geometry_mismatch", SceneError);
+                Debug.LogError(SceneError);
+            }
             started = Time.realtimeSinceStartupAsDouble;
             lapMode = config.startMode;
             lastProgressPosition = vehicle.transform.position;
@@ -47,6 +55,7 @@ namespace JevVision
         }
         private void FixedUpdate()
         {
+            if (!string.IsNullOrEmpty(SceneError)) { if (!controller.Paused) controller.SetPaused(true); return; }
             if (controller.Paused) { lapPaused = true; return; }
             if (controller.Mode != lapMode) mixedModeLap = true;
             AttemptSeconds += Time.fixedDeltaTime;

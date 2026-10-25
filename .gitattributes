@@ -3,8 +3,8 @@
 *.md text eol=lf
 *.json text eol=lf
 *.jsonl text eol=lf
-*.unity text eol=lf
-*.asset text eol=lf
-*.meta text eol=lf
+*.unity text eol=lf whitespace=-blank-at-eol
+*.asset text eol=lf whitespace=-blank-at-eol
+*.meta text eol=lf whitespace=-blank-at-eol
 *.png binary
 *.jpg binary

@@ -8,7 +8,7 @@ if ($Test -eq 'no-key') {
     if (-not [string]::IsNullOrWhiteSpace($configuredKey)) { throw 'Test no-key annullato: esiste gia una chiave. Nessuna chiamata avviata.' }
 }
 $mode = if ($Test -eq 'no-key') { 'jev' } elseif ($Test -eq 'manual' -or $Test -eq 'resets') { 'manual' } else { 'local' }
-$duration = if ($Test -eq 'lap') { 160 } elseif ($Test -eq 'resets') { 15 } else { 7 }
+$duration = if ($Test -eq 'lap') { 360 } elseif ($Test -eq 'resets') { 15 } else { 7 }
 if ($Seconds -gt 0) { $duration = $Seconds }
 $outputDirectory = Join-Path $projectDirectory 'Validation\Runs'
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null

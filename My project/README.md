@@ -12,7 +12,7 @@ La modalità predefinita **Local Vision** funziona senza account o rete: un algo
 
 È incluso anche il player Windows in `Builds/Windows/JevVisionLab.exe` quando la compilazione è disponibile. Avviarlo con doppio clic oppure `powershell -ExecutionPolicy Bypass -File scripts/play.ps1`. Per ricrearlo: **JEV Vision → Build Windows player and validate** nell'editor.
 
-La scena è costruita con primitive e materiali locali, senza download di asset. **JEV Vision → Create or rebuild circuit scene** la rigenera in modo deterministico; la rigenerazione sostituisce la scena del prototipo. `SampleScene.unity` originale resta disponibile.
+Il circuito misto riprende il [perimetro fornito](Documentation/Circuit-reference.png): rientro a sinistra, tratto obliquo superiore e parte destra ampia, con curve a destra e sinistra. La linea centrale è una B-spline chiusa di circa 482 m; strada e cordoli sono mesh continue generate nel progetto, con barriere e auto costruite da primitive. Non sono richiesti asset esterni. **JEV Vision → Create or rebuild circuit scene** rigenera la scena e salva le mesh in `Assets/JevVision/Generated`. `SampleScene.unity` originale resta disponibile.
 
 ## Comandi
 
@@ -47,7 +47,7 @@ Selezionare `Assets/JevVision/Resources/ExperimentSettings.asset` nell'Inspector
 | Camera Height / Pitch | 1,5 m / 8° verso il basso |
 | Timeout Seconds | 8 s |
 | Maximum Decision Age Seconds | 2 s dalla cattura |
-| Maximum Api Calls Per Session | 240 |
+| Maximum Api Calls Per Session | 600 |
 | Maximum Estimated Cost Usd | 0,05 |
 | Save Decision Frames | Salva JPEG associato a ogni decisione |
 | Output Directory | Vuoto: cartella dati del player; personalizzabile |
@@ -163,5 +163,6 @@ Modalità locale/manuale: nessun utilizzo API. In JEV i prezzi sono centralizzat
 - **Baseline perde la strada:** controllare illuminazione/materiali e il frame registrato; agisce su asfalto quasi grigio e può fallire con ombre, texture e ostacoli nuovi. Non è un sistema stradale reale.
 - **Log assenti:** vedere l'errore logging nell'HUD, verificare permessi e spazio nella cartella configurata.
 - **Build bloccata da editor aperto:** usare il menu o il bridge locale; non cancellare il lock di un progetto in uso.
+- **Scena da rigenerare:** se cambiano i punti del tracciato senza aggiornare la geometria, un controllo di coerenza mantiene l'auto ferma e chiede di rigenerare la scena dal menu. Questo evita reset su una pista diversa da quella visibile.
 
 Il giro locale è una verifica del prototipo. M4–M6 e M8–M9 riferite a JEV richiedono credenziali, prove e possibili iterazioni su velocità, frequenza, camera, prompt e sterzo. Le capacità sperimentali del modello non garantiscono il risultato.

@@ -32,6 +32,7 @@ namespace JevVision
             GUILayout.Label("JEV / VISION LAB", title);
             GUILayout.Label("PIXELS → DECISION → VEHICLE", small);
             GUILayout.Space(12);
+            if (!string.IsNullOrEmpty(experiment.SceneError)) GUILayout.Label(experiment.SceneError, warning);
             GUILayout.Label(controller.Mode == DrivingMode.LocalVision ? "LOCAL VISION · OFFLINE" : controller.Mode == DrivingMode.JevVision ? "JEV VISION · API" : "MANUAL · KEYBOARD", title);
             if (controller.Mode == DrivingMode.LocalVision) GUILayout.Label("Baseline dai pixel. Nessuna chiamata JEV.", warning);
             GUILayout.BeginHorizontal();

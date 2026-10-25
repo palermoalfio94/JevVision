@@ -10,8 +10,9 @@ namespace JevVision
             var root = new GameObject("JEV VISION — camera-only driving laboratory");
             var track = new GameObject("Circuit — evaluation geometry only").AddComponent<TrackLayout>();
             track.transform.SetParent(root.transform);
-            Cube("Ground", root.transform, new Vector3(0, -0.25f, 0), new Vector3(180, 0.5f, 180), Quaternion.identity, m[0], true);
-            int segments = 280;
+            Cube("Ground", root.transform, new Vector3(0, -0.25f, 0), new Vector3(260, 0.5f, 220), Quaternion.identity, m[0], true);
+            int segments = Mathf.CeilToInt(track.Length / 0.8f);
+            TrackSurface.Create(track, m, segments);
             for (int i = 0; i < segments; i++)
             {
                 float s = i * track.Length / segments;
@@ -19,16 +20,11 @@ namespace JevVision
                 Vector3 center = (a + b) * 0.5f;
                 Vector3 forward = (b - a).normalized;
                 Vector3 right = Vector3.Cross(Vector3.up, forward);
-                // Outer arc edges need extra overlap, otherwise grass shows between tangent cubes.
-                float length = Vector3.Distance(a, b) + 0.32f;
+                float turn = Vector3.Angle(track.Tangent(s), track.Tangent(s + track.Length / segments)) * Mathf.Deg2Rad;
+                float length = Vector3.Distance(a, b) + 0.05f + turn * (track.roadWidth * 0.5f + 1.3f);
                 Quaternion rotation = Quaternion.LookRotation(forward);
-                Cube("Asphalt", track.transform, center + Vector3.up * 0.015f, new Vector3(track.roadWidth, 0.03f, length), rotation, m[1], false);
                 for (int side = -1; side <= 1; side += 2)
                 {
-                    Cube("White road edge", track.transform, center + right * (side * (track.roadWidth * 0.5f - 0.25f)) + Vector3.up * 0.04f,
-                        new Vector3(0.18f, 0.025f, length), rotation, m[2], false);
-                    Cube("Curb", track.transform, center + right * (side * (track.roadWidth * 0.5f + 0.2f)) + Vector3.up * 0.045f,
-                        new Vector3(0.6f, 0.06f, length), rotation, i / 3 % 2 == 0 ? m[2] : m[3], false);
                     GameObject barrier = Cube("Visible safety barrier", track.transform, center + right * (side * (track.roadWidth * 0.5f + 1.1f)) + Vector3.up * 0.45f,
                         new Vector3(0.22f, 0.9f, length), rotation, m[4], true);
                     barrier.tag = "Respawn";
@@ -36,8 +32,8 @@ namespace JevVision
             }
             // A start stripe and sparse center dashes are visual cues only.
             for (int x = 0; x < 12; x++)
-                Cube("Start grid", track.transform, track.Point(0) + Vector3.right * (x - 5.5f) + Vector3.up * 0.055f,
-                    new Vector3(0.95f, 0.02f, 0.65f), Quaternion.identity, x % 2 == 0 ? m[2] : m[1], false);
+                Cube("Start grid", track.transform, track.Point(0) + Vector3.Cross(Vector3.up, track.Tangent(0)) * (x - 5.5f) + Vector3.up * 0.085f,
+                    new Vector3(0.95f, 0.02f, 0.65f), Quaternion.LookRotation(track.Tangent(0)), x % 2 == 0 ? m[2] : m[1], false);
             for (float s = 5; s < track.Length; s += 8)
                 Cube("Center dash", track.transform, track.Point(s) + Vector3.up * 0.055f, new Vector3(0.12f, 0.02f, 1.6f), Quaternion.LookRotation(track.Tangent(s)), m[8], false);
 
@@ -106,10 +102,13 @@ namespace JevVision
             overview.transform.SetParent(root.transform); overview.nearClipPlane = 0.1f; overview.farClipPlane = 300;
             overview.clearFlags = CameraClearFlags.SolidColor; overview.backgroundColor = new Color(0.49f, 0.69f, 0.86f);
             var observer = overview.gameObject.AddComponent<ObserverCamera>(); observer.target = car.transform;
+            overview.transform.position = car.transform.position - car.transform.forward * 10 + Vector3.up * 7;
+            overview.transform.LookAt(car.transform.position + car.transform.forward * 5 + Vector3.up);
             overview.gameObject.AddComponent<AudioListener>();
             var light = new GameObject("Daylight").AddComponent<Light>(); light.type = LightType.Directional; light.intensity = 1.5f;
             light.transform.SetParent(root.transform); light.transform.rotation = Quaternion.Euler(50, -30, 0);
             RenderSettings.ambientLight = Color.white;
+            track.MarkGeometryGenerated();
             return root;
         }
         private static GameObject Cube(string name, Transform parent, Vector3 position, Vector3 scale, Quaternion rotation, Material material, bool collide, bool local = false)

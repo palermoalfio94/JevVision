@@ -1,5 +1,17 @@
 # Verifiche del prototipo — 25 ottobre 2026
 
+## Aggiornamento: circuito misto e difetto di partenza corretto
+
+La scena attuale riprende il perimetro dell'utente ed è lunga **482,47 m**. Il player ha completato un giro locale in **229,45 s**, con **455 decisioni dai pixel**, **0 reset** e **0 chiamate API**. Errore RMS dalla linea centrale **2,45 m**, massimo **4,70 m**, su carreggiata larga 12 m. Sono stati attraversati tutti i checkpoint in ordine; gli esiti dei test manuale, reset e assenza di chiave sono PASS. La build finale ha **0 errori e 0 avvisi**; passano **187 controlli**, inclusi i casi che modificano larghezza e spline senza rigenerare la geometria. I log contengono 82 decisioni a sinistra e 265 a destra (soglia di sterzo ±0,05).
+
+Report e log della nuova pista: `CircuitEvidence/`. Il riepilogo attuale è `final-summary.json`. I risultati in `Evidence/` e nelle sezioni storiche qui sotto riguardano l'ovale iniziale.
+
+Il difetto segnalato dall'utente era una scena ovale salvata con script di valutazione già aggiornati alla spline: i log mostravano 24,03 m di errore alla partenza e un reset nel punto iniziale del circuito sbagliato. Sono stati rigenerati insieme strada, auto e checkpoint. Un controllo della firma della geometria ora impedisce di guidare una scena non aggiornata. Dettagli in `Documentation/Circuit.md`.
+
+![Nuovo circuito misto](CircuitEvidence/circuit-plan.png)
+
+## Risultati storici dell'ovale iniziale
+
 Ambiente: Windows 11, Unity 6000.3.26f1, URP 17.3.0, player Windows con rendering Direct3D e GPU NVIDIA RTX 3050 Laptop. Le prove sono state eseguite nel player compilato sul progetto dell'utente.
 
 ## Ambito del risultato

@@ -33,7 +33,7 @@ namespace JevVision
         [Range(1, 60)] public int timeoutSeconds = 8;
         public float maximumDecisionAgeSeconds = 2f;
         public float maximumBackoffSeconds = 30f;
-        public int maximumApiCallsPerSession = 240;
+        public int maximumApiCallsPerSession = 600;
         public float maximumEstimatedCostUsd = 0.05f;
 
         [Header("Central price card — TypeSafe models, checked 2026-10-25")]
@@ -45,7 +45,7 @@ namespace JevVision
         [Header("Evaluation only — never included in the model request")]
         public float offTrackGraceSeconds = 1.5f;
         public float stuckSeconds = 12f;
-        public float attemptTimeoutSeconds = 240f;
+        public float attemptTimeoutSeconds = 420f;
         public float severeCollisionImpulse = 1200f;
         public int checkpointCount = 16;
         public int maximumAutomaticResets = 20;
