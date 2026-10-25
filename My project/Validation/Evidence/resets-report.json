@@ -1,0 +1,30 @@
+{
+    "utc": "2026-10-25T17:18:08.4639485Z",
+    "validation": "resets",
+    "mode": "LocalVision",
+    "result": "PASS",
+    "logDirectory": "C:\\Users\\alfio\\OneDrive\\Desktop\\unictMAGISTRALE\\JEVVision\\My project\\Validation\\Runs\\20261025T171804053Z_e560d8",
+    "seconds": 4.340343200000001,
+    "rmsCenterlineError": 14.61305797616071,
+    "maximumCenterlineError": 24.0,
+    "bestLapSeconds": 0.0,
+    "laps": 0,
+    "localLaps": 0,
+    "jevLaps": 0,
+    "manualLaps": 0,
+    "resets": 3,
+    "nextCheckpoint": 1,
+    "apiCalls": 0,
+    "localDecisions": 0,
+    "accelerationSpeed": 0.0,
+    "turnedDegrees": 0.0,
+    "brakeSpeed": 0.0,
+    "resetReasons": [
+        "off_track",
+        "rollover",
+        "stuck"
+    ],
+    "frameValid": true,
+    "loggingValid": true,
+    "antiCheating": "Local driver: Texture2D + fixed camera calibration only. JEV: JPEG + static questions only. Checkpoints are evaluation-only."
+}

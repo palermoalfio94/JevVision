@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8509d74b2a8b2d46920beeca59c2eef, type: 3}
+  m_Name: ExperimentSettings
+  m_EditorClassIdentifier: Assembly-CSharp::JevVision.ExperimentConfig
+  startMode: 1
+  decisionsPerSecond: 2
+  maximumSpeed: 2.2
+  maximumSteeringDegrees: 24
+  acceleration: 2.5
+  braking: 7
+  wheelbase: 2.6
+  steeringSlewPerSecond: 3
+  throttleScale: 0.7
+  imageWidth: 280
+  imageHeight: 280
+  jpegQuality: 80
+  fieldOfView: 65
+  cameraHeight: 1.5
+  cameraPitch: 8
+  endpoint: https://api.typesafe.ai/v1/systemone
+  model: jev-1.14.0
+  apiKeyEnvironmentVariable: TYPESAFE_API_KEY
+  timeoutSeconds: 8
+  maximumDecisionAgeSeconds: 2
+  maximumBackoffSeconds: 30
+  maximumApiCallsPerSession: 240
+  maximumEstimatedCostUsd: 0.05
+  inputUsdPerMillionTokens: 0.042
+  outputUsdPerMillionTokens: 0
+  pricingSource: https://docs.typesafe.ai/models
+  pricingChecked: 2026-10-25
+  offTrackGraceSeconds: 1.5
+  stuckSeconds: 12
+  attemptTimeoutSeconds: 240
+  severeCollisionImpulse: 1200
+  checkpointCount: 16
+  maximumAutomaticResets: 20
+  baselineScanRow: 0.46
+  baselineSteeringGain: 1
+  saveDecisionFrames: 1
+  debugOverlay: 1
+  outputDirectory: 
