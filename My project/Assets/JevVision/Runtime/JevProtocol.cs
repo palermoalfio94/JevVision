@@ -9,7 +9,7 @@ namespace JevVision
         [Serializable] private sealed class State
         {
             public string camera;
-            public string task = "Drive from the front-camera image only. Stay on the road, anticipate bends, avoid collisions, prefer safety.";
+            public string task = "Drive from the front-camera image only. The dashed yellow line marks the track center and desired driving path. Stay on the road, anticipate bends, avoid collisions, prefer safety.";
         }
         [Serializable] private sealed class SteeringCriteria
         {
@@ -29,13 +29,13 @@ namespace JevVision
         }
         [Serializable] private sealed class BrakeCriteria
         {
-            public string release = "Continue: no immediate visible danger.";
-            public string apply = "Brake: imminent collision, road lost or unsafe to proceed.";
+            public string release = "Continue only if there is no immediate visible danger and the car is not on a collision course with a barrier or obstacle.";
+            public string apply = "Brake if the car appears about to hit the blue or light-blue safety barrier, or any other obstacle. Brake before contact. Also brake if the road is lost or continuing is unsafe.";
         }
         [Serializable] private sealed class SteeringQuestion
         {
             public string type = "choice";
-            public string instructions = "Choose steering to follow the visible road ahead in `camera`.";
+            public string instructions = "Choose steering to follow the dashed yellow centerline and its upcoming curvature in `camera`. Use several consecutive dashes and steer smoothly. If markings are unclear, use the road edges.";
             public SteeringCriteria criteria = new SteeringCriteria();
         }
         [Serializable] private sealed class ThrottleQuestion
@@ -47,7 +47,7 @@ namespace JevVision
         [Serializable] private sealed class BrakeQuestion
         {
             public string type = "choice";
-            public string instructions = "Is braking necessary from `camera`?";
+            public string instructions = "Is braking necessary from `camera`? In particular, choose apply if the car appears on a collision course with the blue or light-blue safety barrier. Brake before contact.";
             public BrakeCriteria criteria = new BrakeCriteria();
         }
         [Serializable] private sealed class Questions

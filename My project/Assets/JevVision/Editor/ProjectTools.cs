@@ -24,7 +24,7 @@ namespace JevVision.Editor
             }
             config.Validate();
             var colors = new[] { new Color(0.13f, 0.31f, 0.22f), new Color(0.17f, 0.18f, 0.19f), new Color(0.92f, 0.94f, 0.91f),
-                new Color(0.88f, 0.18f, 0.12f), new Color(0.65f, 0.72f, 0.75f), new Color(0.03f, 0.48f, 0.86f), new Color(0.04f, 0.12f, 0.19f),
+                new Color(0.88f, 0.18f, 0.12f), new Color(0.02f, 0.22f, 0.95f), new Color(0.03f, 0.48f, 0.86f), new Color(0.04f, 0.12f, 0.19f),
                 new Color(0.035f, 0.04f, 0.045f), new Color(0.95f, 0.73f, 0.14f) };
             string[] names = { "Grass", "Asphalt", "White", "Red", "Rail", "Body", "Glass", "Tyre", "Yellow" };
             var materials = new Material[colors.Length];
@@ -88,8 +88,10 @@ namespace JevVision.Editor
             Assert(JevProtocol.TryParse(Reply("straight").Replace("\"release\"", "\"apply\""), out JevDecision stopped, out _, out _) && stopped.throttle == 0 && stopped.brake == 1, "brake overrides throttle");
             string payload = JevProtocol.BuildRequest(new byte[] { 255, 216, 255, 217 }, "jev-1.14.0");
             Assert(payload.Contains("\"data_base64\":\"/9j/2Q==\"") && payload.Contains("\"assets\"") && payload.Contains("\"format\":\"jpg\""), "official image asset envelope");
-            foreach (string forbidden in new[] { "position", "coordinate", "waypoint", "velocity", "checkpoint", "raycast", "centerline", "speed", "api_key" })
+            foreach (string forbidden in new[] { "position", "coordinate", "waypoint", "velocity", "checkpoint", "raycast", "speed", "vehicle", "yaw", "api_key" })
                 Assert(!payload.ToLowerInvariant().Contains(forbidden), "payload excludes " + forbidden);
+            // The visual centerline may be named in instructions, but no evaluated centerline data is sent.
+            Assert(!payload.Contains("\"centerline\":"), "payload excludes centerline");
             var config = ScriptableObject.CreateInstance<ExperimentConfig>();
             Assert(Enum.GetValues(typeof(DrivingMode)).Length == 2, "only manual and JEV modes exist");
             config.startMode = (DrivingMode)1;

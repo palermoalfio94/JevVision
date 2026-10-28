@@ -4,6 +4,7 @@ Progetto Unity **6000.3.26f1**, nella cartella **My project**.
 
 - Scena: `My project/Assets/Scenes/JevVisionCircuit.unity`.
 - Due modalità: **Manuale** e **JEV Vision**, unica guida autonoma.
+- JEV riceve solo la camera frontale, con indicazione di seguire la linea gialla tratteggiata; le decisioni sono mostrate in grande in alto a destra.
 - Il precedente algoritmo basato sui colori è stato eliminato dal codice.
 - Chiave: `TYPESAFE_API_KEY`, configurabile con `My project/scripts/set-jev-key.ps1`.
 - [Istruzioni complete](My%20project/README.md).

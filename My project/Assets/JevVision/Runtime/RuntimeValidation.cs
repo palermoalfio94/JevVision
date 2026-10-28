@@ -82,6 +82,8 @@ namespace JevVision
         }
         private void Start()
         {
+            SceneFactory.AddCenterDashes(experiment.track);
+            SceneFactory.AddRoadsideTrees(experiment.track);
             start = phaseStarted = Time.realtimeSinceStartupAsDouble;
             initialRotation = vehicle.transform.rotation;
             initialPosition = vehicle.transform.position;

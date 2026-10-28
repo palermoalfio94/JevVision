@@ -17,6 +17,8 @@ namespace JevVision
         public string ApiStatus { get; private set; } = "offline";
         public string LastResponse { get; private set; } = "";
         public string LastError { get; private set; } = "";
+        public JevProtocol.Answers LastJevAnswers { get; private set; }
+        public double LastJevDecisionAge => lastValidCapture < 0 ? -1 : Time.realtimeSinceStartupAsDouble - lastValidCapture;
         public double LastLatencyMs { get; private set; }
         public double TotalLatencyMs { get; private set; }
         public int ApiCalls { get; private set; }
@@ -72,6 +74,7 @@ namespace JevVision
             generation++;
             client.Cancel();
             lastValidCapture = -1;
+            LastJevAnswers = null;
             lastValid = JevDecision.Stop();
             vehicle.SetCommand(lastValid);
             nextDecision = Time.realtimeSinceStartupAsDouble + 0.25;
@@ -154,6 +157,7 @@ namespace JevVision
                 else if (result.success && Time.realtimeSinceStartupAsDouble - capturedAt <= config.maximumDecisionAgeSeconds)
                 {
                     lastValid = result.decision;
+                    LastJevAnswers = result.response.answers;
                     lastValid.throttle *= config.throttleScale;
                     lastValidCapture = capturedAt;
                     SuccessfulCalls++;

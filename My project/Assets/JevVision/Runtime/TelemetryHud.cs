@@ -18,6 +18,7 @@ namespace JevVision
         private DrivingMode selectedMode;
         private string speedText, frequencyText;
         private GUIStyle setupTitle, setupButton, numberField;
+        private GUIStyle decisionValue, decisionHeading;
         private void OnGUI()
         {
             if (title == null)
@@ -29,6 +30,8 @@ namespace JevVision
                 setupTitle = new GUIStyle(title) { fontSize = 30 };
                 setupButton = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
                 numberField = new GUIStyle(GUI.skin.textField) { fontSize = 18, alignment = TextAnchor.MiddleLeft };
+                decisionValue = new GUIStyle(label) { fontSize = 28, fontStyle = FontStyle.Bold, wordWrap = false };
+                decisionHeading = new GUIStyle(title) { fontSize = 20 };
             }
             float scale = Mathf.Min(Screen.width / 1280f, Screen.height / 800f);
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, Vector3.one * scale);
@@ -43,7 +46,7 @@ namespace JevVision
             GUI.color = Color.white;
             GUILayout.BeginArea(new Rect(30, 28, 328, h - 54));
             GUILayout.Label("JEV / VISION LAB", title);
-            GUILayout.Label("PIXELS → DECISION → VEHICLE", small);
+            GUILayout.Label("CAMERA → JEV → AUTO", small);
             GUILayout.Space(12);
             if (!string.IsNullOrEmpty(experiment.SceneError)) GUILayout.Label(experiment.SceneError, warning);
             GUILayout.Label(controller.Mode == DrivingMode.JevVision ? "JEV VISION · API" : "MANUAL · KEYBOARD", title);
@@ -74,15 +77,75 @@ namespace JevVision
             if (!string.IsNullOrEmpty(logger.LoggingError)) GUILayout.Label("LOG ERROR: " + logger.LoggingError, warning);
             GUILayout.EndArea();
 
+            DrawJevDecisions(Screen.width / scale);
             if (config.debugOverlay && capture.LastFrame != null)
             {
                 float x = Screen.width / scale - 302;
-                GUI.color = new Color(0.04f, 0.07f, 0.12f, 0.94f); GUI.DrawTexture(new Rect(x - 10, 14, 298, 393), Texture2D.whiteTexture); GUI.color = Color.white;
-                GUI.Label(new Rect(x, 22, 280, 24), "FRAME EFFETTIVO / " + capture.CapturedAt.ToString("F2") + "s", small);
-                GUI.DrawTexture(new Rect(x, 48, 280, 280), capture.LastFrame, ScaleMode.ScaleToFit);
+                const float top = 270;
+                GUI.color = new Color(0.04f, 0.07f, 0.12f, 0.94f); GUI.DrawTexture(new Rect(x - 10, top, 298, 393), Texture2D.whiteTexture); GUI.color = Color.white;
+                GUI.Label(new Rect(x, top + 8, 280, 24), "FRAME EFFETTIVO / " + capture.CapturedAt.ToString("F2") + "s", small);
+                GUI.DrawTexture(new Rect(x, top + 34, 280, 280), capture.LastFrame, ScaleMode.ScaleToFit);
                 string detail = !string.IsNullOrEmpty(controller.LastError) ? controller.LastError : controller.LastResponse;
                 if (detail.Length > 270) detail = detail.Substring(0, 270) + "…";
-                GUI.Label(new Rect(x, 333, 280, 68), detail, small);
+                GUI.Label(new Rect(x, top + 319, 280, 68), detail, small);
+            }
+        }
+
+        private void DrawJevDecisions(float screenWidth)
+        {
+            float x = screenWidth - 464;
+            const float y = 14;
+            bool manual = controller.Mode == DrivingMode.Manual;
+            var answers = manual ? null : controller.LastJevAnswers;
+            bool applied = !manual && !controller.Paused && answers != null &&
+                controller.LastJevDecisionAge <= config.maximumDecisionAgeSeconds && vehicle.Command.source == "jev";
+            GUI.color = new Color(0.025f, 0.045f, 0.075f, 0.97f);
+            GUI.DrawTexture(new Rect(x, y, 450, 242), Texture2D.whiteTexture);
+            GUI.color = applied ? new Color(0.3f, 0.88f, 1) : new Color(1, 0.76f, 0.27f);
+            GUI.DrawTexture(new Rect(x, y, 450, 4), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+            GUI.Label(new Rect(x + 18, y + 16, 414, 28), "DECISIONI JEV", decisionHeading);
+            DrawDecisionRow(x, y + 54, "STERZO", SteeringText(answers?.steering?.choice), applied ? Color.white : Color.gray);
+            DrawDecisionRow(x, y + 98, "GAS", ThrottleText(answers?.throttle?.choice), applied ? Color.white : Color.gray);
+            string brake = answers == null ? "—" : answers.brake.choice == "apply" ? "SÌ · FRENA" : "NO";
+            DrawDecisionRow(x, y + 142, "FRENO", brake, applied && answers.brake.choice == "apply" ? new Color(1, 0.35f, 0.25f) : applied ? Color.white : Color.gray);
+            string status = manual ? "MANUALE · nessuna decisione JEV" : controller.Paused ? "IN PAUSA · auto frenata" :
+                answers == null ? "IN ATTESA · " + controller.ApiStatus :
+                applied ? $"APPLICATA · età frame {controller.LastJevDecisionAge:F1} s" : "NON APPLICATA · frenata di sicurezza";
+            GUI.Label(new Rect(x + 18, y + 198, 414, 36), status, applied ? small : warning);
+        }
+
+        private void DrawDecisionRow(float x, float y, string name, string value, Color color)
+        {
+            GUI.Label(new Rect(x + 18, y + 8, 88, 28), name, small);
+            GUI.color = color;
+            GUI.Label(new Rect(x + 110, y, 324, 40), value, decisionValue);
+            GUI.color = Color.white;
+        }
+
+        private static string SteeringText(string choice)
+        {
+            switch (choice)
+            {
+                case "strong_left": return "FORTE A SINISTRA";
+                case "left": return "SINISTRA";
+                case "slight_left": return "POCO A SINISTRA";
+                case "straight": return "DRITTO";
+                case "slight_right": return "POCO A DESTRA";
+                case "right": return "DESTRA";
+                case "strong_right": return "FORTE A DESTRA";
+                default: return "—";
+            }
+        }
+
+        private static string ThrottleText(string choice)
+        {
+            switch (choice)
+            {
+                case "coast": return "RILASCIA";
+                case "slow": return "LEGGERO";
+                case "cruise": return "MODERATO";
+                default: return "—";
             }
         }
 

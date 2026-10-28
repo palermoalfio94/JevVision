@@ -19,6 +19,12 @@ Il player Windows è `Builds/Windows/JevVisionLab.exe`. Per avviarlo: `powershel
 
 Il circuito misto di circa 482 m riprende il [perimetro dell'utente](Documentation/Circuit-reference.png), con carreggiata di 12 m e curve in entrambe le direzioni. Le cinque mesh continue della strada sono generate in `Assets/JevVision/Generated`; barriere e auto usano primitive. **Create or rebuild circuit scene** rigenera strada, partenza e checkpoint insieme. Una firma impedisce di guidare una scena non coerente con la spline di valutazione. [Dettagli](Documentation/Circuit.md).
 
+Le barriere sono **blu e alte 1,5 m**, con base a terra (in precedenza 0,9 m). Colore e altezza sono salvati nella scena e nel materiale `Rail`, e riportati nel generatore: una futura rigenerazione conserva questi valori.
+
+All'avvio vengono aggiunti alberi low poly fuori strada, nel gruppo `Roadside low poly trees`: tronchi semplici e chiome coniche a sei lati, due tonalità di verde e dimensioni variabili. Una distribuzione deterministica mantiene alberi e chiome oltre le barriere, controllando la distanza da tutto il circuito. Sono elementi visivi senza collider, visibili anche alla camera JEV. Non aggiungono campi al payload.
+
+Le strisce gialle centrali sono lunghe 1,6 m e si ripetono ogni **4 m** (in precedenza 8 m): frequenza raddoppiata e spazio vuoto fra le strisce ridotto a 2,4 m. Anche le scene salvate prima della modifica aggiornano le strisce automaticamente all'avvio della guida.
+
 ## Modalità e tastiera
 
 | Comando | Azione |
@@ -33,6 +39,8 @@ Il circuito misto di circa 482 m riprende il [perimetro dell'utente](Documentati
 | C | Vista osservatore: inseguimento / panoramica |
 
 Durante la guida i pulsanti dell'HUD replicano modalità, pausa e reset; mostrano anche velocità massima e frequenza impostate. Non esiste una modalità automatica offline o un fallback al controllo a colori.
+
+Il pannello **DECISIONI JEV**, sempre visibile in alto a destra durante la guida, mostra in grande sterzo, gas e freno restituiti dal modello. Indica se la decisione è applicata, in attesa, scaduta o sospesa; in manuale non presenta comandi JEV come attivi. L'anteprima del JPEG e il dettaglio della risposta sono sotto il pannello, se il debug overlay è abilitato.
 
 ## Credenziali
 
@@ -92,7 +100,7 @@ flowchart TD
 | SceneFactory / ProjectTools | Costruzione deterministica e verifica della scena |
 | RuntimeValidation | Prove riproducibili nel player |
 
-Il solo input dinamico di `JevProtocol.BuildRequest(byte[] jpeg, string model)` è il JPEG. `state` contiene `camera` e un'istruzione statica; le tre domande condividono lo stesso frame. Non vengono passati posizione, velocità, waypoint, distanze, raycast, geometria o checkpoint. L'HUD e i trigger invisibili non compaiono nella camera del modello.
+Il solo input dinamico di `JevProtocol.BuildRequest(byte[] jpeg, string model)` è il JPEG. `state` contiene `camera` e un'istruzione statica; le tre domande condividono lo stesso frame. Il compito e la domanda sullo sterzo indicano la linea gialla tratteggiata come traiettoria: considerare più tratteggi consecutivi, anticipare la curvatura e sterzare dolcemente, usando i bordi se le strisce non sono chiare. Gas e tutte le etichette di risposta restano originali. Il criterio del freno chiede esplicitamente di frenare prima del contatto se la traiettoria visibile porta verso la barriera blu/azzurra o un altro ostacolo. L'invio dello stato dell'auto e le istruzioni relative a velocità, sterzo e rotazione sono stati rimossi su richiesta dell'utente. Non vengono passati posizione, velocità, waypoint, distanze, raycast, geometria o checkpoint. L'HUD e i trigger invisibili non compaiono nella camera del modello. La telemetria locale resta disponibile per HUD e log.
 
 Le risposte JEV sono l'unica sorgente di comandi automatici. La fisica usa il Rigidbody per applicarli; l'evaluator può interrompere o resettare un tentativo ma non corregge lo sterzo. Cambio modalità e reset invalidano le risposte pendenti. Il vecchio valore serializzato della modalità rimossa viene convertito in Manuale.
 
