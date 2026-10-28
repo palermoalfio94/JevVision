@@ -8,7 +8,7 @@ namespace JevVision
     {
         public ExperimentConfig config;
         public Transform[] visualWheels;
-        public JevDecision Command { get; private set; } = JevDecision.Stop();
+        public JevDecision Command { get; private set; } = JevDecision.Coast();
         public float AppliedSteering { get; private set; }
         public float Speed => Body == null ? 0 : Body.linearVelocity.magnitude;
         public Rigidbody Body { get; private set; }
@@ -30,9 +30,9 @@ namespace JevVision
             Body.angularVelocity = Vector3.zero;
             Body.constraints = held ? RigidbodyConstraints.FreezeAll : drivingConstraints;
             Held = held;
-            SetCommand(JevDecision.Stop("waiting_for_play"));
+            SetCommand(JevDecision.Coast("waiting_for_play"));
         }
-        public void SetCommand(JevDecision decision) => Command = decision ?? JevDecision.Stop();
+        public void SetCommand(JevDecision decision) => Command = decision ?? JevDecision.Coast();
         private void FixedUpdate()
         {
             if (config == null || Held) return;
@@ -42,8 +42,8 @@ namespace JevVision
             float forwardSpeed = Vector3.Dot(Body.linearVelocity, forward);
             float sideSpeed = Vector3.Dot(Body.linearVelocity, right);
             float drive = Mathf.Clamp01(Command.throttle) * config.acceleration;
-            float stop = Mathf.Clamp01(Command.brake) * config.braking + 0.18f;
-            float targetSpeed = Mathf.Clamp(forwardSpeed + (drive - stop) * Time.fixedDeltaTime, 0, config.maximumSpeed);
+            const float rollingResistance = 0.18f;
+            float targetSpeed = Mathf.Clamp(forwardSpeed + (drive - rollingResistance) * Time.fixedDeltaTime, 0, config.maximumSpeed);
             Body.AddForce(forward * ((targetSpeed - forwardSpeed) / Time.fixedDeltaTime) - right * (sideSpeed / Time.fixedDeltaTime), ForceMode.Acceleration);
             float yaw = forwardSpeed * Mathf.Tan(AppliedSteering * config.maximumSteeringDegrees * Mathf.Deg2Rad) / config.wheelbase;
             Body.angularVelocity = new Vector3(0, yaw, 0);
@@ -60,7 +60,7 @@ namespace JevVision
             Body.angularVelocity = Vector3.zero;
             AppliedSteering = 0;
             LastCollisionImpulse = 0;
-            SetCommand(JevDecision.Stop());
+            SetCommand(JevDecision.Coast());
             Physics.SyncTransforms();
         }
         private void OnCollisionEnter(Collision collision)

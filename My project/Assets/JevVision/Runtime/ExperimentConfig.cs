@@ -14,7 +14,6 @@ namespace JevVision
         [Range(0.5f, 8f)] public float maximumSpeed = 1.2f;
         [Range(5f, 40f)] public float maximumSteeringDegrees = 24f;
         public float acceleration = 2.5f;
-        public float braking = 7f;
         public float wheelbase = 2.6f;
         public float steeringSlewPerSecond = 3f;
         [Range(0f, 1f)] public float throttleScale = 0.7f;

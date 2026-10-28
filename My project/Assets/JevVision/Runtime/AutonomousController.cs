@@ -37,7 +37,7 @@ namespace JevVision
         private double nextDecision, lastValidCapture = -1;
         private int consecutiveErrors;
         private bool terminalApiError;
-        private JevDecision lastValid = JevDecision.Stop();
+        private JevDecision lastValid = JevDecision.Coast();
 
         private void Start()
         {
@@ -66,6 +66,7 @@ namespace JevVision
         public void SetPaused(bool paused)
         {
             Paused = !HasStarted || paused;
+            vehicle.SetHeld(Paused);
             Invalidate();
             logger.RecordEvent(Paused ? "pause" : "resume", Mode.ToString());
         }
@@ -75,13 +76,13 @@ namespace JevVision
             client.Cancel();
             lastValidCapture = -1;
             LastJevAnswers = null;
-            lastValid = JevDecision.Stop();
+            lastValid = JevDecision.Coast();
             vehicle.SetCommand(lastValid);
             nextDecision = Time.realtimeSinceStartupAsDouble + 0.25;
         }
         private void Update()
         {
-            if (!HasStarted) { vehicle.SetCommand(JevDecision.Stop("waiting_for_play")); return; }
+            if (!HasStarted) { vehicle.SetCommand(JevDecision.Coast("waiting_for_play")); return; }
             var keyboard = Keyboard.current;
             if (keyboard != null)
             {
@@ -89,18 +90,17 @@ namespace JevVision
                 if (keyboard.digit2Key.wasPressedThisFrame || keyboard.digit3Key.wasPressedThisFrame) SetMode(DrivingMode.JevVision);
                 if (keyboard.pKey.wasPressedThisFrame) SetPaused(!Paused);
             }
-            if (Paused) { vehicle.SetCommand(JevDecision.Stop("paused")); return; }
+            if (Paused) { vehicle.SetCommand(JevDecision.Coast("paused")); return; }
             if (Mode == DrivingMode.Manual)
             {
                 float steering = keyboard == null ? 0 : (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed ? 1 : 0) - (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed ? 1 : 0);
                 float throttle = keyboard != null && (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) ? config.throttleScale : 0;
-                float brake = keyboard != null && (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed || keyboard.spaceKey.isPressed) ? 1 : 0;
-                vehicle.SetCommand(new JevDecision { steering = JevDecision.Label(steering), steeringValue = steering, throttle = throttle, brake = brake, source = "manual" });
+                vehicle.SetCommand(new JevDecision { steering = JevDecision.Label(steering), steeringValue = steering, throttle = throttle, source = "manual" });
             }
             else if (lastValidCapture < 0 || Time.realtimeSinceStartupAsDouble - lastValidCapture > config.maximumDecisionAgeSeconds)
             {
-                vehicle.SetCommand(JevDecision.Stop("stale_or_missing_decision"));
-                if (Mode == DrivingMode.JevVision && ApiStatus == "ready") ApiStatus = "decision expired: braking";
+                vehicle.SetCommand(JevDecision.Coast("stale_or_missing_decision"));
+                if (Mode == DrivingMode.JevVision && ApiStatus == "ready") ApiStatus = "decision expired: coasting";
             }
             else vehicle.SetCommand(lastValid);
         }
@@ -171,11 +171,11 @@ namespace JevVision
                     consecutiveErrors++;
                     outcome = result.success ? "discarded_stale" : "error";
                     if (result.success) DiscardedResponses++;
-                    ApiStatus = result.success ? "response too old: braking" : result.error;
+                    ApiStatus = result.success ? "response too old: coasting" : result.error;
                     if (result.httpStatus == 400 || result.httpStatus == 401 || result.httpStatus == 402 || result.httpStatus == 403 || result.httpStatus == 404 || result.httpStatus == 413 || result.httpStatus == 422)
                         terminalApiError = true;
                 }
-                logger.RecordDecision(result.decision ?? JevDecision.Stop("api_error"), jpeg, result, outcome, capturedAt);
+                logger.RecordDecision(result.decision ?? JevDecision.Coast("api_error"), jpeg, result, outcome, capturedAt);
                 double backoff = consecutiveErrors == 0 ? 0 : Math.Min(config.maximumBackoffSeconds, Math.Pow(2, Math.Min(consecutiveErrors, 8)));
                 nextDecision = Math.Max(capturedAt + 1.0 / config.decisionsPerSecond, Time.realtimeSinceStartupAsDouble + Math.Max(backoff, result.retryAfter));
             }

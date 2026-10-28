@@ -78,14 +78,14 @@ namespace JevVision.Editor
             {
                 string json = Reply(label);
                 Assert(JevProtocol.TryParse(json, out JevDecision command, out JevProtocol.Response response, out _), "parse " + label);
-                Assert(command.source == "jev" && command.brake == 0 && command.throttle == 0.7f && response.usage.input_tokens == 285, "fields " + label);
+                Assert(command.source == "jev" && command.throttle == 0.7f && command.confidence == 0.8f && response.usage.input_tokens == 285, "fields " + label);
             }
             Assert(!JevProtocol.TryParse(Reply("teleport"), out _, out _, out _), "reject unknown steering");
             Assert(!JevProtocol.TryParse("{}", out _, out _, out _), "reject missing answers");
             Assert(!JevProtocol.TryParse("not json", out _, out _, out _), "reject malformed JSON");
             Assert(!JevProtocol.TryParse(Reply("straight").Replace("\"confidence\":0.8", "\"confidence\":2"), out _, out _, out _), "reject invalid confidence");
             Assert(!JevProtocol.TryParse(Reply("straight").Replace("\"cruise\"", "\"full\""), out _, out _, out _), "reject unknown throttle");
-            Assert(JevProtocol.TryParse(Reply("straight").Replace("\"release\"", "\"apply\""), out JevDecision stopped, out _, out _) && stopped.throttle == 0 && stopped.brake == 1, "brake overrides throttle");
+            Assert(JevProtocol.TryParse(Reply("straight").Replace("\"cruise\"", "\"coast\""), out JevDecision coasting, out _, out _) && coasting.throttle == 0, "coast releases accelerator");
             string payload = JevProtocol.BuildRequest(new byte[] { 255, 216, 255, 217 }, "jev-1.14.0");
             Assert(payload.Contains("\"data_base64\":\"/9j/2Q==\"") && payload.Contains("\"assets\"") && payload.Contains("\"format\":\"jpg\""), "official image asset envelope");
             foreach (string forbidden in new[] { "position", "coordinate", "waypoint", "velocity", "checkpoint", "raycast", "speed", "vehicle", "yaw", "api_key" })
@@ -132,7 +132,7 @@ namespace JevVision.Editor
             File.WriteAllText("Validation/protocol-checks.json", "{\n  \"result\":\"PASS\",\n  \"checks\":" + checks.Count + ",\n  \"items\":[" + string.Join(",", checks.ConvertAll(x => "\"" + x + "\"")) + "]\n}");
             Debug.Log("JEV_VISION_PROTOCOL_PASS checks=" + checks.Count);
         }
-        private static string Reply(string steering) => "{\"model\":\"jev-1.14.0\",\"answers\":{\"steering\":{\"type\":\"choice\",\"choice\":\"" + steering + "\",\"confidence\":0.8},\"throttle\":{\"type\":\"choice\",\"choice\":\"cruise\",\"confidence\":0.8},\"brake\":{\"type\":\"choice\",\"choice\":\"release\",\"confidence\":0.8}},\"usage\":{\"input_tokens\":285,\"output_tokens\":30}}";
+        private static string Reply(string steering) => "{\"model\":\"jev-1.14.0\",\"answers\":{\"steering\":{\"type\":\"choice\",\"choice\":\"" + steering + "\",\"confidence\":0.8},\"throttle\":{\"type\":\"choice\",\"choice\":\"cruise\",\"confidence\":0.8}},\"usage\":{\"input_tokens\":285,\"output_tokens\":30}}";
         private static bool RoadSurfacesAreSaved(TrackLayout track)
         {
             int count = 0;

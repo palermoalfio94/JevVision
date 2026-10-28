@@ -58,7 +58,7 @@ namespace JevVision
             GUILayout.Space(8);
             var command = vehicle.Command;
             GUILayout.Label($"{vehicle.Speed * 3.6f:F1} km/h   |   {vehicle.Speed:F2} m/s", title);
-            GUILayout.Label($"Sterzo  {command.steering}  ({vehicle.AppliedSteering:+0.00;-0.00;0.00})\nGas  {command.throttle:F2}     Freno  {command.brake:F2}\nConfidence  {(command.confidence < 0 ? "n/d" : command.confidence.ToString("F2"))}", label);
+            GUILayout.Label($"Sterzo  {command.steering}  ({vehicle.AppliedSteering:+0.00;-0.00;0.00})\nGas  {command.throttle:F2}\nConfidence  {(command.confidence < 0 ? "n/d" : command.confidence.ToString("F2"))}", label);
             GUILayout.Space(7);
             GUILayout.Label($"Giri  {experiment.Laps}  (JEV {experiment.JevLaps} / manuali {experiment.ManualLaps})\nCheckpoint  {experiment.NextCheckpoint}/{config.checkpointCount}\nTempo  {experiment.Elapsed:F1}s   Tentativo  {experiment.AttemptSeconds:F1}s\nReset  {experiment.Resets}  ·  {experiment.LastResetReason}", label);
             GUILayout.Space(7);
@@ -73,7 +73,7 @@ namespace JevVision
             if (GUILayout.Button("Reset [R]")) experiment.ResetExperiment("user_reset");
             if (GUILayout.Button("Aiuto")) showHelp = !showHelp;
             GUILayout.EndHorizontal();
-            if (showHelp) GUILayout.Label("W/↑ gas · S/↓/Spazio freno\nA/D o ←/→ sterzo · C vista\n1 manuale · 2 JEV (anche 3)\nLa camera non contiene HUD o checkpoint.", small);
+            if (showHelp) GUILayout.Label("W/↑ gas · rilascia per procedere per inerzia\nA/D o ←/→ sterzo · C vista\n1 manuale · 2 JEV (anche 3)\nLa camera non contiene HUD o checkpoint.", small);
             if (!string.IsNullOrEmpty(logger.LoggingError)) GUILayout.Label("LOG ERROR: " + logger.LoggingError, warning);
             GUILayout.EndArea();
 
@@ -81,7 +81,7 @@ namespace JevVision
             if (config.debugOverlay && capture.LastFrame != null)
             {
                 float x = Screen.width / scale - 302;
-                const float top = 270;
+                const float top = 226;
                 GUI.color = new Color(0.04f, 0.07f, 0.12f, 0.94f); GUI.DrawTexture(new Rect(x - 10, top, 298, 393), Texture2D.whiteTexture); GUI.color = Color.white;
                 GUI.Label(new Rect(x, top + 8, 280, 24), "FRAME EFFETTIVO / " + capture.CapturedAt.ToString("F2") + "s", small);
                 GUI.DrawTexture(new Rect(x, top + 34, 280, 280), capture.LastFrame, ScaleMode.ScaleToFit);
@@ -100,19 +100,17 @@ namespace JevVision
             bool applied = !manual && !controller.Paused && answers != null &&
                 controller.LastJevDecisionAge <= config.maximumDecisionAgeSeconds && vehicle.Command.source == "jev";
             GUI.color = new Color(0.025f, 0.045f, 0.075f, 0.97f);
-            GUI.DrawTexture(new Rect(x, y, 450, 242), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(x, y, 450, 198), Texture2D.whiteTexture);
             GUI.color = applied ? new Color(0.3f, 0.88f, 1) : new Color(1, 0.76f, 0.27f);
             GUI.DrawTexture(new Rect(x, y, 450, 4), Texture2D.whiteTexture);
             GUI.color = Color.white;
             GUI.Label(new Rect(x + 18, y + 16, 414, 28), "DECISIONI JEV", decisionHeading);
             DrawDecisionRow(x, y + 54, "STERZO", SteeringText(answers?.steering?.choice), applied ? Color.white : Color.gray);
             DrawDecisionRow(x, y + 98, "GAS", ThrottleText(answers?.throttle?.choice), applied ? Color.white : Color.gray);
-            string brake = answers == null ? "—" : answers.brake.choice == "apply" ? "SÌ · FRENA" : "NO";
-            DrawDecisionRow(x, y + 142, "FRENO", brake, applied && answers.brake.choice == "apply" ? new Color(1, 0.35f, 0.25f) : applied ? Color.white : Color.gray);
-            string status = manual ? "MANUALE · nessuna decisione JEV" : controller.Paused ? "IN PAUSA · auto frenata" :
+            string status = manual ? "MANUALE · nessuna decisione JEV" : controller.Paused ? "IN PAUSA" :
                 answers == null ? "IN ATTESA · " + controller.ApiStatus :
-                applied ? $"APPLICATA · età frame {controller.LastJevDecisionAge:F1} s" : "NON APPLICATA · frenata di sicurezza";
-            GUI.Label(new Rect(x + 18, y + 198, 414, 36), status, applied ? small : warning);
+                applied ? $"APPLICATA · età frame {controller.LastJevDecisionAge:F1} s" : "NON APPLICATA · gas rilasciato";
+            GUI.Label(new Rect(x + 18, y + 154, 414, 36), status, applied ? small : warning);
         }
 
         private void DrawDecisionRow(float x, float y, string name, string value, Color color)
@@ -201,14 +199,14 @@ namespace JevVision
             GUILayout.EndHorizontal();
             GUI.enabled = true;
             frequencyValid = ReadNumber(frequencyText, 0.2f, 10f, out frequency);
-            if (selectedMode == DrivingMode.Manual) GUILayout.Label("In manuale: nessuna chiamata API. W/A/S/D o frecce per guidare.", small);
+            if (selectedMode == DrivingMode.Manual) GUILayout.Label("In manuale: nessuna chiamata API. W/↑ gas, A/D o ←/→ sterzo.", small);
             else if (!frequencyValid) GUILayout.Label("Inserisci un valore tra 0,2 e 10 chiamate al secondo.", warning);
             else GUILayout.Label($"Un'immagine ogni {1f / frequency:F2} s. Una richiesta alla volta: la latenza può ridurre la frequenza effettiva.", small);
             GUILayout.Space(20);
             GUILayout.Label("AUTO FERMA · IN ATTESA DI PLAY", title);
             GUILayout.Label("Prima di Play non parte alcuna chiamata API.", label);
             if (selectedMode == DrivingMode.JevVision)
-                GUILayout.Label(controller.client.HasKey ? "JEV usa la chiave configurata e può consumare credito." : "Chiave JEV non configurata: il veicolo resterà frenato.", warning);
+                GUILayout.Label(controller.client.HasKey ? "JEV usa la chiave configurata e può consumare credito." : "Chiave JEV non configurata: nessun comando di accelerazione.", warning);
             if (!string.IsNullOrEmpty(experiment.SceneError)) GUILayout.Label(experiment.SceneError, warning);
             GUILayout.Space(16);
             GUI.enabled = speedValid && (selectedMode == DrivingMode.Manual || frequencyValid) && experiment.track.GeometryMatchesSettings;

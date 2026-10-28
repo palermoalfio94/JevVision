@@ -17,7 +17,6 @@ MonoBehaviour:
   maximumSpeed: 1.2
   maximumSteeringDegrees: 24
   acceleration: 2.5
-  braking: 7
   wheelbase: 2.6
   steeringSlewPerSecond: 3
   throttleScale: 0.7

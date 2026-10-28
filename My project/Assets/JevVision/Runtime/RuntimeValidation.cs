@@ -23,7 +23,7 @@ namespace JevVision
         private int stage;
         private double phaseStarted;
         private int observedResets;
-        private float accelerationSpeed, turnedDegrees, brakeSpeed;
+        private float accelerationSpeed, turnedDegrees, coastSpeed;
         private Quaternion initialRotation;
         private Keyboard keyboard;
         private RigidbodyConstraints initialConstraints;
@@ -43,7 +43,7 @@ namespace JevVision
             public double meanLatencyMs, estimatedCostUsd;
             public float maximumTravelMeters, maximumSpeedMetersPerSecond;
             public float maximumHorizontalSpeedMetersPerSecond;
-            public float accelerationSpeed, turnedDegrees, brakeSpeed;
+            public float accelerationSpeed, turnedDegrees, coastSpeed;
             public string[] resetReasons;
             public bool frameValid, loggingValid;
             public bool startupBlocked, selectedSettingsApplied;
@@ -153,8 +153,8 @@ namespace JevVision
                 else
                 {
                     if (stage == 1) { accelerationSpeed = vehicle.Speed; stage = 2; }
-                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Space));
-                    if (phase > 3) { brakeSpeed = vehicle.Speed; capture.Capture(); Finish(); }
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState());
+                    if (phase > 3) { coastSpeed = vehicle.Speed; capture.Capture(); Finish(); }
                 }
             }
             if (validationMode == "manual")
@@ -168,8 +168,8 @@ namespace JevVision
                 else
                 {
                     if (stage == 1) { turnedDegrees = Quaternion.Angle(initialRotation, vehicle.transform.rotation); stage = 2; }
-                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Space));
-                    brakeSpeed = vehicle.Speed;
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState());
+                    coastSpeed = vehicle.Speed;
                 }
             }
             if (validationMode == "resets")
@@ -204,8 +204,8 @@ namespace JevVision
             bool logsValid = string.IsNullOrEmpty(logger.LoggingError) && Directory.Exists(logger.SessionDirectory);
             bool passed = validationMode == "setup-screen" ? setupBlocked && File.Exists(Path.Combine(logger.SessionDirectory, "startup-settings.png")) :
                 validationMode == "setup-jev" ? setupBlocked && settingsApplied && maximumTravel < 0.1f && vehicle.Speed < 0.1f && controller.ApiCalls == 0 && controller.ApiStatus.StartsWith("missing ") :
-                validationMode == "setup" ? setupBlocked && settingsApplied && maximumHorizontalSpeed <= 0.81f && accelerationSpeed > 0.7f && brakeSpeed < 0.1f && controller.ApiCalls == 0 :
-                validationMode == "manual" ? accelerationSpeed > 0.8f && turnedDegrees > 5 && brakeSpeed < 0.2f :
+                validationMode == "setup" ? setupBlocked && settingsApplied && maximumHorizontalSpeed <= 0.81f && accelerationSpeed > 0.7f && coastSpeed < accelerationSpeed - 0.05f && controller.ApiCalls == 0 :
+                validationMode == "manual" ? accelerationSpeed > 0.8f && turnedDegrees > 5 && coastSpeed < accelerationSpeed - 0.2f :
                 validationMode == "resets" ? resetReasons.Contains("off_track") && resetReasons.Contains("rollover") && resetReasons.Contains("stuck") :
                 validationMode == "frame" ? experiment.Resets == 0 && controller.ApiCalls == 0 :
                 validationMode == "jev-frame" ? controller.ApiCalls == 1 && controller.SuccessfulCalls == 1 && maximumTravel < 0.1f :
@@ -221,7 +221,7 @@ namespace JevVision
                 estimatedCostUsd = controller.EstimatedCost, maximumTravelMeters = maximumTravel, maximumSpeedMetersPerSecond = maximumSpeed,
                 maximumHorizontalSpeedMetersPerSecond = maximumHorizontalSpeed,
                 rmsCenterlineError = Math.Sqrt(experiment.SumSquaredCenterlineError / Math.Max(1, experiment.EvaluationSamples)), maximumCenterlineError = experiment.MaximumCenterlineError,
-                bestLapSeconds = experiment.BestLapSeconds, accelerationSpeed = accelerationSpeed, turnedDegrees = turnedDegrees, brakeSpeed = brakeSpeed,
+                bestLapSeconds = experiment.BestLapSeconds, accelerationSpeed = accelerationSpeed, turnedDegrees = turnedDegrees, coastSpeed = coastSpeed,
                 resetReasons = resetReasons.ToArray(), frameValid = frameValid, loggingValid = logsValid,
                 startupBlocked = setupBlocked, selectedSettingsApplied = settingsApplied };
             logger.RecordEvent("validation_complete", report.result);

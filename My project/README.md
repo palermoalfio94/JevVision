@@ -1,6 +1,6 @@
 # JEV Vision Lab
 
-Prototipo Unity di guida su circuito chiuso: **l'unico controllo autonomo è JEV**, che riceve esclusivamente il JPEG della camera frontale e restituisce sterzo, acceleratore e freno. Resta disponibile il controllo manuale per verificare fisica e pista. Il precedente algoritmo basato sui colori è stato eliminato dal progetto il 28 ottobre 2026.
+Prototipo Unity di guida su circuito chiuso: **l'unico controllo autonomo è JEV**, che riceve esclusivamente il JPEG della camera frontale e restituisce sterzo e acceleratore. Resta disponibile il controllo manuale per verificare fisica e pista. Il precedente algoritmo basato sui colori è stato eliminato dal progetto il 28 ottobre 2026.
 
 Versioni: **Unity 6000.3.26f1**, URP 17.3.0, Input System 1.20.0.
 
@@ -11,7 +11,7 @@ Versioni: **Unity 6000.3.26f1**, URP 17.3.0, Input System 1.20.0.
 3. Configurare `TYPESAFE_API_KEY` con `scripts/set-jev-key.ps1`.
 4. Premere **Play** nell'editor: appare la schermata **Prepara la guida**, con auto bloccata e zero richieste API.
 5. Scegliere **Manuale** o **JEV Vision**, la **velocità massima** (0,5–8 m/s, con conversione in km/h) e, per JEV, la **frequenza richiesta** (0,2–10 call/s). Slider e campi numerici accettano anche valori decimali con virgola.
-6. Premere **PLAY · AVVIA GUIDA** dentro il gioco. In manuale usare W/A/S/D o frecce; in JEV iniziano le richieste API, che possono consumare credito. Senza una chiave valida il veicolo resta frenato.
+6. Premere **PLAY · AVVIA GUIDA** dentro il gioco. In manuale usare W/↑ per il gas e A/D/←/→ per lo sterzo; in JEV iniziano le richieste API, che possono consumare credito. Senza una chiave valida non viene applicato gas.
 
 Le impostazioni si applicano alla sessione e vengono salvate nel suo `config.json`, senza modificare l'asset del progetto. Prima di Play, neppure i tasti P, 1/2 o l'acceleratore avviano la guida. Il cronometro parte con la guida e si ferma durante le pause. La frequenza è un massimo: c'è sempre una sola richiesta in volo. Per intervalli lunghi la validità del comando è almeno l'intervallo tra chiamate più 0,5 s.
 
@@ -33,14 +33,15 @@ Le strisce gialle centrali sono lunghe 1,6 m e si ripetono ogni **4 m** (in prec
 | 2 | JEV Vision (anche 3 per compatibilità con i vecchi comandi) |
 | W / freccia su | Acceleratore manuale |
 | A-D / frecce laterali | Sterzo manuale |
-| S / freccia giù / Spazio | Freno manuale |
-| P | Pausa/riprendi i comandi |
+| P | Pausa/riprendi il veicolo |
 | R | Reset del tentativo |
 | C | Vista osservatore: inseguimento / panoramica |
 
+In manuale rilasciare W/↑ per procedere per inerzia; P mette in pausa il veicolo. All'avvio l'auto rimane immobilizzata fino al pulsante Play.
+
 Durante la guida i pulsanti dell'HUD replicano modalità, pausa e reset; mostrano anche velocità massima e frequenza impostate. Non esiste una modalità automatica offline o un fallback al controllo a colori.
 
-Il pannello **DECISIONI JEV**, sempre visibile in alto a destra durante la guida, mostra in grande sterzo, gas e freno restituiti dal modello. Indica se la decisione è applicata, in attesa, scaduta o sospesa; in manuale non presenta comandi JEV come attivi. L'anteprima del JPEG e il dettaglio della risposta sono sotto il pannello, se il debug overlay è abilitato.
+Il pannello **DECISIONI JEV**, sempre visibile in alto a destra durante la guida, mostra in grande sterzo e gas restituiti dal modello. Indica se la decisione è applicata, in attesa, scaduta o sospesa; in manuale non presenta comandi JEV come attivi. L'anteprima del JPEG e il dettaglio della risposta sono sotto il pannello, se il debug overlay è abilitato.
 
 ## Credenziali
 
@@ -64,7 +65,7 @@ Selezionare `Assets/JevVision/Resources/ExperimentSettings.asset`.
 | Frame | JPEG 280 x 280, qualità 80 |
 | Camera | FOV 65 gradi, altezza 1,5 m, pitch 8 gradi |
 | Timeout | 8 s |
-| Maximum Decision Age | 2 s dall'acquisizione, poi frenata |
+| Maximum Decision Age | 2 s dall'acquisizione, poi gas rilasciato |
 | Model | jev-1.14.0 |
 | Maximum API Calls Per Session | 600 |
 | Maximum Estimated Cost USD | 0,05 |
@@ -72,7 +73,7 @@ Selezionare `Assets/JevVision/Resources/ExperimentSettings.asset`.
 
 Risoluzione, JPEG, frequenza, velocità, sterzo, timeout, età massima del comando, budget e logging sono configurabili. Per cambiare la posa/FOV della camera o i checkpoint rigenerare la scena. I parametri del vecchio algoritmo a colori sono stati rimossi.
 
-La fisica usa un Rigidbody e un modello dinamico a bicicletta: accelerazione, freno, attrito laterale e contatti reali con le barriere. Rollio/beccheggio sono vincolati per la stabilità V1; non si simula una sospensione realistica.
+La fisica usa un Rigidbody e un modello dinamico a bicicletta: accelerazione, resistenza al rotolamento, attrito laterale e contatti reali con le barriere. Rollio/beccheggio sono vincolati per la stabilità V1; non si simula una sospensione realistica.
 
 ## Architettura e vincolo visual-only
 
@@ -80,7 +81,7 @@ La fisica usa un Rigidbody e un modello dinamico a bicicletta: accelerazione, fr
 flowchart TD
     A[Camera frontale] --> B[JPEG]
     B --> C[JEV: tre domande choice]
-    C --> D[JevDecision: sterzo / gas / freno]
+    C --> D[JevDecision: sterzo / gas]
     D --> E[VehicleController]
     E --> F[Ambiente Unity]
     F --> A
@@ -90,17 +91,17 @@ flowchart TD
 
 | Componente | Compito |
 |---|---|
-| VehicleController | Motore fisico, sterzo, freno e limite di velocità |
+| VehicleController | Motore fisico, sterzo e limite di velocità |
 | CameraCapture | RenderTexture frontale, richiesta URP esplicita, JPEG e timestamp |
 | JevProtocol / JevClient | Schema ufficiale, HTTP asincrono e parsing |
-| JevDecision | Sette etichette di sterzo, acceleratore e freno |
+| JevDecision | Sette etichette di sterzo e acceleratore |
 | AutonomousController | Manuale oppure JEV, scheduling, scarto risposte vecchie, budget |
 | ExperimentManager / LapCheckpoint | Valutazione indipendente, giri e reset |
 | TelemetryLogger / TelemetryHud | CSV/JSONL, frame, richieste, risposte e HUD |
 | SceneFactory / ProjectTools | Costruzione deterministica e verifica della scena |
 | RuntimeValidation | Prove riproducibili nel player |
 
-Il solo input dinamico di `JevProtocol.BuildRequest(byte[] jpeg, string model)` è il JPEG. `state` contiene `camera` e un'istruzione statica; le tre domande condividono lo stesso frame. Il compito e la domanda sullo sterzo indicano la linea gialla tratteggiata come traiettoria: considerare più tratteggi consecutivi, anticipare la curvatura e sterzare dolcemente, usando i bordi se le strisce non sono chiare. Gas e tutte le etichette di risposta restano originali. Il criterio del freno chiede esplicitamente di frenare prima del contatto se la traiettoria visibile porta verso la barriera blu/azzurra o un altro ostacolo. L'invio dello stato dell'auto e le istruzioni relative a velocità, sterzo e rotazione sono stati rimossi su richiesta dell'utente. Non vengono passati posizione, velocità, waypoint, distanze, raycast, geometria o checkpoint. L'HUD e i trigger invisibili non compaiono nella camera del modello. La telemetria locale resta disponibile per HUD e log.
+Il solo input dinamico di `JevProtocol.BuildRequest(byte[] jpeg, string model)` è il JPEG. `state` contiene `camera` e un'istruzione statica; le due domande condividono lo stesso frame. Il compito e la domanda sullo sterzo indicano la linea gialla tratteggiata come traiettoria: considerare più tratteggi consecutivi, anticipare la curvatura e sterzare dolcemente, usando i bordi se le strisce non sono chiare. La domanda sul gas e le etichette di risposta restano originali. L'invio dello stato dell'auto e le istruzioni relative a velocità, sterzo e rotazione sono stati rimossi su richiesta dell'utente. Non vengono passati posizione, velocità, waypoint, distanze, raycast, geometria o checkpoint. L'HUD e i trigger invisibili non compaiono nella camera del modello. La telemetria locale resta disponibile per HUD e log.
 
 Le risposte JEV sono l'unica sorgente di comandi automatici. La fisica usa il Rigidbody per applicarli; l'evaluator può interrompere o resettare un tentativo ma non corregge lo sterzo. Cambio modalità e reset invalidano le risposte pendenti. Il vecchio valore serializzato della modalità rimossa viene convertito in Manuale.
 
@@ -108,9 +109,9 @@ Le risposte JEV sono l'unica sorgente di comandi automatici. La fisica usa il Ri
 
 JEV usa `POST https://api.typesafe.ai/v1/systemone`, Bearer authentication e l'header sperimentale `TypeSafe-Danger-Zone-Images: true`. Il JSON contiene un asset JPEG base64 con UUID referenziato in `state.camera`.
 
-Tre domande `choice`: sterzo, accelerazione (`coast`, `slow`, `cruise`) e freno (`release`, `apply`). Il freno annulla il gas. La confidence mostrata è il minimo delle tre confidence quando tutte presenti; le distribuzioni restano nella risposta grezza. La frequenza reale dipende dalla latenza: non vengono accumulate richieste arretrate.
+Due domande `choice`: sterzo e accelerazione (`coast`, `slow`, `cruise`). La confidence mostrata è il minimo delle due confidence quando entrambe presenti; le distribuzioni restano nella risposta grezza. La frequenza reale dipende dalla latenza: non vengono accumulate richieste arretrate.
 
-Durante l'attesa rimane l'ultimo comando valido, entro l'età massima del frame. Dopo la scadenza si frena. Timeout, parsing invalido, risposte obsolete e budget esaurito non avviano altri metodi di guida. Gli errori temporanei applicano backoff e Retry-After; quelli permanenti sospendono le richieste fino alla riselezione della modalità.
+Durante l'attesa rimane l'ultimo comando valido, entro l'età massima del frame. Dopo la scadenza l'acceleratore viene rilasciato e l'auto procede per inerzia. Timeout, parsing invalido, risposte obsolete e budget esaurito non avviano altri metodi di guida. Gli errori temporanei applicano backoff e Retry-After; quelli permanenti sospendono le richieste fino alla riselezione della modalità.
 
 ## Valutazione
 
@@ -150,7 +151,7 @@ Non usare `-nographics`: le prove richiedono rendering reale. I report del 25 ot
 
 ## Troubleshooting e limiti
 
-- Senza chiave o con risposta non valida l'auto resta frenata. Controllare lo stato API nell'HUD.
+- Senza chiave o con risposta non valida l'acceleratore resta rilasciato. Controllare lo stato API nell'HUD.
 - Dopo 401/402/403 correggere chiave o credito e riselezionare JEV. Per 429 consultare i limiti della propria organizzazione.
 - Se le risposte arrivano troppo tardi, controllare frame, latenza ed età massima del comando; regolare velocità e frequenza con sessioni nuove.
 - Entrambi i lati dell'immagine devono essere fra 280 e 1568 pixel. La cattura effettua rendering URP esplicito anche nei player batch.

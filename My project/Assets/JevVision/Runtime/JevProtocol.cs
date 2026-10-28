@@ -27,11 +27,6 @@ namespace JevVision
             public string slow = "Accelerate gently for a bend or caution.";
             public string cruise = "Accelerate moderately: road ahead is clear.";
         }
-        [Serializable] private sealed class BrakeCriteria
-        {
-            public string release = "Continue only if there is no immediate visible danger and the car is not on a collision course with a barrier or obstacle.";
-            public string apply = "Brake if the car appears about to hit the blue or light-blue safety barrier, or any other obstacle. Brake before contact. Also brake if the road is lost or continuing is unsafe.";
-        }
         [Serializable] private sealed class SteeringQuestion
         {
             public string type = "choice";
@@ -44,17 +39,10 @@ namespace JevVision
             public string instructions = "Choose safe acceleration from `camera`.";
             public ThrottleCriteria criteria = new ThrottleCriteria();
         }
-        [Serializable] private sealed class BrakeQuestion
-        {
-            public string type = "choice";
-            public string instructions = "Is braking necessary from `camera`? In particular, choose apply if the car appears on a collision course with the blue or light-blue safety barrier. Brake before contact.";
-            public BrakeCriteria criteria = new BrakeCriteria();
-        }
         [Serializable] private sealed class Questions
         {
             public SteeringQuestion steering = new SteeringQuestion();
             public ThrottleQuestion throttle = new ThrottleQuestion();
-            public BrakeQuestion brake = new BrakeQuestion();
         }
         [Serializable] private sealed class Request
         {
@@ -78,7 +66,6 @@ namespace JevVision
         {
             public ChoiceAnswer steering;
             public ChoiceAnswer throttle;
-            public ChoiceAnswer brake;
         }
         [Serializable] public sealed class Usage
         {
@@ -107,7 +94,7 @@ namespace JevVision
             {
                 response = JsonUtility.FromJson<Response>(json);
                 Answers a = response?.answers;
-                if (a == null || !ValidChoice(a.steering) || !ValidChoice(a.throttle) || !ValidChoice(a.brake)) return false;
+                if (a == null || !ValidChoice(a.steering) || !ValidChoice(a.throttle)) return false;
                 if (!JevDecision.TrySteering(a.steering.choice, out float steer)) { error = "Unknown steering label."; return false; }
                 float throttle;
                 switch (a.throttle.choice)
@@ -117,11 +104,10 @@ namespace JevVision
                     case "cruise": throttle = 0.7f; break;
                     default: error = "Unknown throttle label."; return false;
                 }
-                if (a.brake.choice != "apply" && a.brake.choice != "release") { error = "Unknown brake label."; return false; }
-                float confidence = a.steering.confidence >= 0 && a.throttle.confidence >= 0 && a.brake.confidence >= 0
-                    ? Mathf.Min(a.steering.confidence, Mathf.Min(a.throttle.confidence, a.brake.confidence)) : -1;
-                decision = new JevDecision { steering = a.steering.choice, steeringValue = steer, throttle = a.brake.choice == "apply" ? 0 : throttle,
-                    brake = a.brake.choice == "apply" ? 1 : 0, confidence = confidence, source = "jev" };
+                float confidence = a.steering.confidence >= 0 && a.throttle.confidence >= 0
+                    ? Mathf.Min(a.steering.confidence, a.throttle.confidence) : -1;
+                decision = new JevDecision { steering = a.steering.choice, steeringValue = steer,
+                    throttle = throttle, confidence = confidence, source = "jev" };
                 error = "";
                 return true;
             }

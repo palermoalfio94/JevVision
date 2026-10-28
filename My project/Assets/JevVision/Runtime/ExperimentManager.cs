@@ -84,7 +84,7 @@ namespace JevVision
             { stuckTime = 0; lastProgressPosition = vehicle.transform.position; }
             else stuckTime += Time.fixedDeltaTime;
             bool canDrive = controller.Mode == DrivingMode.JevVision && controller.SuccessfulCalls > 0 ||
-                controller.Mode == DrivingMode.Manual && vehicle.Command.throttle > 0.05f && vehicle.Command.brake < 0.1f;
+                controller.Mode == DrivingMode.Manual && vehicle.Command.throttle > 0.05f;
             string failure = offRoadTime > config.offTrackGraceSeconds ? "off_track" :
                 Vector3.Dot(vehicle.transform.up, Vector3.up) < 0.35f ? "rollover" :
                 vehicle.transform.position.y < -2 || vehicle.transform.position.y > 5 ? "invalid_height" :

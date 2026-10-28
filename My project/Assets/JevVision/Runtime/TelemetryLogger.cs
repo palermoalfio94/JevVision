@@ -38,7 +38,7 @@ namespace JevVision
                 Directory.CreateDirectory(Path.Combine(SessionDirectory, "requests"));
                 File.WriteAllText(Path.Combine(SessionDirectory, "config.json"), JsonUtility.ToJson(config, true));
                 samples = Open("telemetry.csv"); decisions = Open("decisions.jsonl"); events = Open("events.csv");
-                samples.WriteLine("utc,elapsed_s,attempt,mode,speed_m_s,steering,throttle,brake,confidence,api_status,api_calls,successful_calls,failures,discarded_responses,last_latency_ms,mean_latency_ms,input_tokens,output_tokens,unmetered_calls,estimated_usd,calls_per_min,tokens_per_min,usd_per_min,usd_per_hour,usd_per_jev_lap,resets,laps,jev_laps,manual_laps,next_checkpoint,centerline_error_m,source");
+                samples.WriteLine("utc,elapsed_s,attempt,mode,speed_m_s,steering,throttle,confidence,api_status,api_calls,successful_calls,failures,discarded_responses,last_latency_ms,mean_latency_ms,input_tokens,output_tokens,unmetered_calls,estimated_usd,calls_per_min,tokens_per_min,usd_per_min,usd_per_hour,usd_per_jev_lap,resets,laps,jev_laps,manual_laps,next_checkpoint,centerline_error_m,source");
                 events.WriteLine("utc,elapsed_s,event,detail");
                 Debug.Log("JEV_VISION_LOGS " + SessionDirectory);
             }
@@ -64,7 +64,7 @@ namespace JevVision
                 double minutes = Math.Max(experiment.Elapsed / 60, 1.0 / 60000);
                 double costMinute = controller.EstimatedCost / minutes;
                 samples.WriteLine(string.Join(",", new[] {
-                    Q(DateTime.UtcNow.ToString("O")), F(experiment.Elapsed), F(experiment.Attempt), Q(controller.Mode.ToString()), F(vehicle.Speed), F(vehicle.AppliedSteering), F(c.throttle), F(c.brake), F(c.confidence), Q(controller.ApiStatus),
+                    Q(DateTime.UtcNow.ToString("O")), F(experiment.Elapsed), F(experiment.Attempt), Q(controller.Mode.ToString()), F(vehicle.Speed), F(vehicle.AppliedSteering), F(c.throttle), F(c.confidence), Q(controller.ApiStatus),
                     F(controller.ApiCalls), F(controller.SuccessfulCalls), F(controller.Failures), F(controller.DiscardedResponses), F(controller.LastLatencyMs), F(controller.AverageLatencyMs),
                     F(controller.InputTokens), F(controller.OutputTokens), F(controller.UnmeteredCalls), F(controller.EstimatedCost), F(controller.ApiCalls / minutes), F((controller.InputTokens + controller.OutputTokens) / minutes),
                     F(costMinute), F(costMinute * 60), experiment.JevLaps > 0 ? F(controller.EstimatedCost / experiment.JevLaps) : "", F(experiment.Resets), F(experiment.Laps), F(experiment.JevLaps), F(experiment.ManualLaps), F(experiment.NextCheckpoint), F(experiment.CenterlineError), Q(c.source)

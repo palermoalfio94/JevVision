@@ -9,10 +9,9 @@ namespace JevVision
         public string steering = "straight";
         public float steeringValue;
         public float throttle;
-        public float brake = 1f;
         public float confidence = -1f;
-        public string source = "stopped";
-        public static JevDecision Stop(string source = "safety") => new JevDecision { source = source };
+        public string source = "coast";
+        public static JevDecision Coast(string source = "safety") => new JevDecision { source = source };
         public static bool TrySteering(string label, out float value)
         {
             switch (label)
