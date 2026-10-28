@@ -1,4 +1,4 @@
-# Contratto JEV verificato il 25 ottobre 2026
+# Contratto JEV verificato il 28 ottobre 2026
 
 Le fonti di riferimento sono quelle di **TypeSafe**, il produttore di Jev. I numerosi siti con nomi simili trovati in ricerca non sono stati usati come specifica del client.
 
@@ -47,7 +47,7 @@ Una sola richiesta in volo; target 2 Hz, senza recuperare richieste arretrate. S
 
 Backoff esponenziale su errori temporanei, con rispetto di `Retry-After` (secondi o data HTTP). Nessun retry immediato dello stesso frame: il tentativo successivo cattura una nuova immagine. Errori 400/401/402/403/404/413/422 sospendono l'API finché si riseleziona la modalità. Reset/cambio modalità invalidano le richieste pendenti; eventuali token riportati sono contabilizzati anche per risposte scartate.
 
-I rate limit ufficiali sono **per organizzazione** e consultabili nella [console](https://console.typesafe.ai/rate-limits); non è documentato un valore universale da codificare. Budget locale: 600 richieste e $0,05 stimati per sessione, così la pista mista più lunga non esaurisce il budget di chiamate durante un giro a 2 Hz. Il limite di costo usa token effettivamente riportati e può superarsi del costo dell'ultima richiesta. Non sostituisce un limite sul conto del provider.
+I rate limit ufficiali sono **per organizzazione** e consultabili nella [console](https://console.typesafe.ai/rate-limits); non è documentato un valore universale da codificare. Budget configurato: 600 richieste e $0,05 stimati per sessione. Il limite di costo usa token effettivamente riportati e può superarsi del costo dell'ultima richiesta. Non sostituisce un limite sul conto del provider.
 
 ## Prezzi e token
 
@@ -57,7 +57,7 @@ La tariffa, data e fonte sono centralizzate in `ExperimentSettings.asset`. Il co
 
 `(input_tokens × inputUsdPerMillionTokens + output_tokens × outputUsdPerMillionTokens) / 1_000_000`
 
-I tassi mostrati sono medie sulla durata della sessione; il costo per giro JEV divide tutti i costi API della sessione (compresi tentativi falliti/scartati) per i giri JEV completati. In locale le chiamate, i token e i costi API sono zero; il costo per giro JEV è non disponibile. Un uso senza token riportati è segnalato come parziale.
+I tassi mostrati sono medie sulla durata della sessione; il costo per giro JEV divide tutti i costi API della sessione (compresi tentativi falliti/scartati) per i giri JEV completati. In manuale le chiamate, i token e i costi API sono zero; il costo per giro JEV è non disponibile finché non viene completato un giro. Un uso senza token riportati è segnalato come parziale.
 
-**Stato delle verifiche:** il contratto è stato letto; le risposte del parser sono testate con fixture. Senza credenziali non è stata eseguita una richiesta a JEV e non si rivendicano né capacità di guida di JEV né latenze o token misurati del provider.
+**Verifica reale del 28 ottobre 2026:** test curl testuale HTTP 200, seguito da una richiesta Unity con JPEG a veicolo bloccato e 12 richieste Unity durante una guida breve. Le 13 richieste con immagini sono state accettate e interpretate; tutti i comandi automatici applicati provengono da JEV. La guida breve ha percorso circa 4,49 m in 6,81 s con latenza media 374 ms, senza reset. Utilizzo immagini complessivo: 10.779 input token e 1.882 output token; costo stimato $0,000452718 alla tariffa configurata. Questo verifica il ciclo camera/API/comandi, non il completamento di un giro. Report e audit dei payload in `Validation/JevEvidence`.
 

@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "requests": 13,
+  "matchingJpegs": 13,
+  "stateFields": [
+    "camera",
+    "task"
+  ],
+  "automaticCommandSource": "jev",
+  "legacyColourDriverPresentInPlayer": false
+}

@@ -24,13 +24,13 @@ namespace JevVision
         public int SuccessfulCalls { get; private set; }
         public int Failures { get; private set; }
         public int DiscardedResponses { get; private set; }
-        public int LocalDecisions { get; private set; }
         public long InputTokens { get; private set; }
         public long OutputTokens { get; private set; }
         public int UnmeteredCalls { get; private set; }
         public double EstimatedCost => (InputTokens * config.inputUsdPerMillionTokens + OutputTokens * config.outputUsdPerMillionTokens) / 1000000.0;
         public double AverageLatencyMs => CompletedCalls == 0 ? 0 : TotalLatencyMs / CompletedCalls;
-        public bool Paused { get; private set; }
+        public bool HasStarted { get; private set; }
+        public bool Paused { get; private set; } = true;
         private int generation;
         private double nextDecision, lastValidCapture = -1;
         private int consecutiveErrors;
@@ -39,12 +39,21 @@ namespace JevVision
 
         private void Start()
         {
-            Mode = config.startMode;
+            if (!HasStarted) Mode = config.startMode;
+            if (!HasStarted) ApiStatus = "in attesa di Play / nessuna chiamata";
             logger.RecordEvent("mode", Mode.ToString());
             StartCoroutine(DecisionLoop());
         }
+        public void BeginDriving(DrivingMode mode)
+        {
+            SetMode(mode);
+            HasStarted = true;
+            vehicle.SetHeld(false);
+            SetPaused(false);
+        }
         public void SetMode(DrivingMode mode)
         {
+            if (mode != DrivingMode.Manual && mode != DrivingMode.JevVision) throw new ArgumentOutOfRangeException(nameof(mode));
             Invalidate();
             Mode = mode;
             terminalApiError = false;
@@ -54,9 +63,9 @@ namespace JevVision
         }
         public void SetPaused(bool paused)
         {
-            Paused = paused;
+            Paused = !HasStarted || paused;
             Invalidate();
-            logger.RecordEvent(paused ? "pause" : "resume", Mode.ToString());
+            logger.RecordEvent(Paused ? "pause" : "resume", Mode.ToString());
         }
         public void Invalidate()
         {
@@ -69,12 +78,12 @@ namespace JevVision
         }
         private void Update()
         {
+            if (!HasStarted) { vehicle.SetCommand(JevDecision.Stop("waiting_for_play")); return; }
             var keyboard = Keyboard.current;
             if (keyboard != null)
             {
                 if (keyboard.digit1Key.wasPressedThisFrame) SetMode(DrivingMode.Manual);
-                if (keyboard.digit2Key.wasPressedThisFrame) SetMode(DrivingMode.LocalVision);
-                if (keyboard.digit3Key.wasPressedThisFrame) SetMode(DrivingMode.JevVision);
+                if (keyboard.digit2Key.wasPressedThisFrame || keyboard.digit3Key.wasPressedThisFrame) SetMode(DrivingMode.JevVision);
                 if (keyboard.pKey.wasPressedThisFrame) SetPaused(!Paused);
             }
             if (Paused) { vehicle.SetCommand(JevDecision.Stop("paused")); return; }
@@ -100,24 +109,12 @@ namespace JevVision
             {
                 yield return null;
                 double now = Time.realtimeSinceStartupAsDouble;
-                if (Paused || now < nextDecision) continue;
+                if (!HasStarted || Paused || now < nextDecision) continue;
                 if (Mode == DrivingMode.Manual)
                 {
                     capture.Capture();
                     nextDecision = now + 0.5;
                     ApiStatus = "manual / no API";
-                    continue;
-                }
-                if (Mode == DrivingMode.LocalVision)
-                {
-                    byte[] image = capture.Capture();
-                    lastValid = LocalVisionDriver.Decide(capture.LastFrame, config);
-                    lastValidCapture = capture.CapturedAt;
-                    LocalDecisions++;
-                    ApiStatus = "LOCAL PIXELS / no API";
-                    LastResponse = "Local pixel baseline (not a JEV response).";
-                    logger.RecordDecision(lastValid, image, null, "applied", capture.CapturedAt);
-                    nextDecision = now + 1.0 / config.decisionsPerSecond;
                     continue;
                 }
                 if (terminalApiError) continue;

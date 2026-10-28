@@ -1,0 +1,5 @@
+utc,elapsed_s,event,detail
+"2026-10-28T17:29:39.8121766Z",0.002146,"attempt_start","1"
+"2026-10-28T17:29:39.8177785Z",0.005226,"mode","JevVision"
+"2026-10-28T17:29:46.8272060Z",7.01475,"validation_complete","PASS"
+"2026-10-28T17:29:46.9771817Z",7.164299,"pause","JevVision"

@@ -5,7 +5,7 @@ try {
     $keyValue = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($keyPointer)
     if ([string]::IsNullOrWhiteSpace($keyValue)) { throw 'Chiave vuota.' }
     [Environment]::SetEnvironmentVariable('TYPESAFE_API_KEY', $keyValue.Trim(), 'User')
-    Write-Host 'TYPESAFE_API_KEY configurata per questo utente. In Unity premi 3 per JEV.'
+    Write-Host 'TYPESAFE_API_KEY configurata per questo utente. In Unity premi 2 per JEV.'
 } finally {
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($keyPointer)
     $keyValue = $null

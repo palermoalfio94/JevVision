@@ -1,0 +1,7 @@
+utc,elapsed_s,attempt,mode,speed_m_s,steering,throttle,brake,confidence,api_status,api_calls,successful_calls,failures,discarded_responses,last_latency_ms,mean_latency_ms,input_tokens,output_tokens,unmetered_calls,estimated_usd,calls_per_min,tokens_per_min,usd_per_min,usd_per_hour,usd_per_jev_lap,resets,laps,jev_laps,manual_laps,next_checkpoint,centerline_error_m,source
+"2026-10-28T17:29:13.4201803Z",0.045364,1,"JevVision",0,0,0,1,-1,"offline",0,0,0,0,0,0,0,0,0,0,0,0,0,0,,0,0,0,0,1,0,"stale_or_missing_decision"
+"2026-10-28T17:29:13.8978634Z",0.524407,1,"JevVision",0,0,0,1,-1,"waiting",1,0,0,0,0,0,0,0,0,0,114.416585,0,0,0,,0,0,0,0,1,0,"stale_or_missing_decision"
+"2026-10-28T17:29:14.1126963Z",0.738091,1,"JevVision",0,0,0,1,-1,"waiting",1,0,0,0,0,0,0,0,0,0,81.291604,0,0,0,,0,0,0,0,1,0,"stale_or_missing_decision"
+"2026-10-28T17:29:14.3127677Z",0.938145,1,"JevVision",0,0,0,1,-1,"waiting",1,0,0,0,0,0,0,0,0,0,63.956475,0,0,0,,0,0,0,0,1,0,"stale_or_missing_decision"
+"2026-10-28T17:29:14.5296692Z",1.154849,1,"JevVision",0,0,0,1,-1,"waiting",1,0,0,0,0,0,0,0,0,0,51.955159,0,0,0,,0,0,0,0,1,0,"stale_or_missing_decision"
+"2026-10-28T17:29:14.7543596Z",1.379657,1,"JevVision",0,0,0,1,-1,"ready",1,1,0,0,744.1028,744.1028,827,144,0,0.000035,43.489193,42228.006446,0.001511,0.090633,,0,0,0,0,1,0,"paused"

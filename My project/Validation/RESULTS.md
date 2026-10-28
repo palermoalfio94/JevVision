@@ -1,75 +1,38 @@
-# Verifiche del prototipo — 25 ottobre 2026
+# Verifiche JEV Vision — 28 ottobre 2026
 
-## Aggiornamento: circuito misto e difetto di partenza corretto
-
-La scena attuale riprende il perimetro dell'utente ed è lunga **482,47 m**. Il player ha completato un giro locale in **229,45 s**, con **455 decisioni dai pixel**, **0 reset** e **0 chiamate API**. Errore RMS dalla linea centrale **2,45 m**, massimo **4,70 m**, su carreggiata larga 12 m. Sono stati attraversati tutti i checkpoint in ordine; gli esiti dei test manuale, reset e assenza di chiave sono PASS. La build finale ha **0 errori e 0 avvisi**; passano **187 controlli**, inclusi i casi che modificano larghezza e spline senza rigenerare la geometria. I log contengono 82 decisioni a sinistra e 265 a destra (soglia di sterzo ±0,05).
-
-Report e log della nuova pista: `CircuitEvidence/`. Il riepilogo attuale è `final-summary.json`. I risultati in `Evidence/` e nelle sezioni storiche qui sotto riguardano l'ovale iniziale.
-
-Il difetto segnalato dall'utente era una scena ovale salvata con script di valutazione già aggiornati alla spline: i log mostravano 24,03 m di errore alla partenza e un reset nel punto iniziale del circuito sbagliato. Sono stati rigenerati insieme strada, auto e checkpoint. Un controllo della firma della geometria ora impedisce di guidare una scena non aggiornata. Dettagli in `Documentation/Circuit.md`.
-
-![Nuovo circuito misto](CircuitEvidence/circuit-plan.png)
-
-## Risultati storici dell'ovale iniziale
-
-Ambiente: Windows 11, Unity 6000.3.26f1, URP 17.3.0, player Windows con rendering Direct3D e GPU NVIDIA RTX 3050 Laptop. Le prove sono state eseguite nel player compilato sul progetto dell'utente.
-
-## Ambito del risultato
-
-Su richiesta dell'utente il prototipo deve funzionare **senza JEV e senza credenziali**, mantenendo pronta l'integrazione successiva. La guida provata è quindi **Local Vision**, alimentata dai pixel reali della camera. Nessun giro locale è attribuito a JEV; non sono state effettuate richieste al servizio.
+Il precedente algoritmo di guida basato sul colore è stato **eliminato dal codice e dal player**. Restano esclusivamente Manuale e JEV Vision. I risultati precedenti sono conservati in [HISTORY-2026-10-25.md](HISTORY-2026-10-25.md) e non sono prove di guida JEV.
 
 ## Build e controlli
 
-- Build Windows riuscita, **0 errori e 0 avvisi**: `build-result.txt`.
-- **52 controlli superati**: `protocol-checks.json`. Comprendono parsing delle sette etichette, risposte invalide, precedenza del freno, formato degli asset immagine, esclusione di informazioni privilegiate, comportamento su immagini sintetiche, circuito chiuso e checkpoint invisibili.
-- Le risposte JEV di questi controlli sono fixture; non dimostrano una chiamata reale.
+- Unity 6000.3.26f1, player Windows: build riuscita, **0 errori e 0 avvisi**.
+- **187 controlli superati** su contratto, parsing, due sole modalità, migrazione del valore serializzato rimosso, geometria e checkpoint.
+- File `LocalVisionDriver.cs` e relativo `.meta` assenti; il nome della classe è assente anche dai metadati del player compilato.
 
-## Prove nel player
+## Prove reali
 
-| Prova | Esito verificato |
+| Prova | Risultato |
 |---|---|
-| Manuale tramite eventi del nuovo Input System | Velocità 2,2 m/s, rotazione circa 39°, frenata fino a 0 m/s |
-| Camera e primi comandi locali | 20 decisioni in 10 s, JPEG 280×280 con contenuto visivo, accelerazione a 2,2 m/s |
-| Reset automatici | Uscita pista, ribaltamento e blocco inducono tre reset distinti; tempo blocco ridotto a 2 s esclusivamente nel test |
-| JEV senza chiave | Veicolo fermo, nessun reset inutile, **0 chiamate API** |
-| Giro Local Vision | Un giro completo attraverso 1…15,0, senza interventi, senza reset, senza API |
+| curl testuale | HTTP 200, scelta stop, 331 token input e 32 output; nessuna immagine |
+| Immagine Unity, veicolo bloccato | PASS, una chiamata, risposta applicabile, 744 ms, 827 input token e 144 output |
+| Guida JEV breve | PASS, 12 chiamate e 12 risposte applicate, 0 errori e 0 reset |
+| Fisica/manuale | PASS, 1,2 m/s, sterzo misurato 21,27 gradi, frenata fino a zero |
+| Chiave assente simulata | PASS, zero richieste e frenata; la variabile reale dell'utente resta invariata |
+| Reset | PASS, uscita pista, ribaltamento e blocco indotti nel test senza API |
 
-I report e i file originali si trovano nelle cartelle di sessione sotto `Runs/`; i report conclusivi sono raccolti anche in `Evidence/`.
+Nella guida JEV l'auto ha percorso **4,49 m** in **6,81 s**, a massimo **1 m/s**. La latenza media è stata **374 ms**, errore RMS dalla linea centrale **0,126 m**, massimo **0,339 m**. Il test termina al budget di 12 chiamate: **non è un giro completo e non prova ancora l'affidabilità nelle curve del circuito**.
 
-**Giro sulla build finale:** **108,51 s**, **215 decisioni locali**, **0 reset**, **0 chiamate API**, errore RMS **2,33 m**, errore massimo **3,33 m** su strada larga 12 m. La sequenza completa dei checkpoint è presente in `Evidence/lap-events.csv`; i campioni fisici e i comandi sono in `Evidence/lap-telemetry.csv` e `Evidence/lap-decisions.jsonl`. Il report è `Evidence/lap-report.json`; `final-summary.json` raccoglie tutte le prove superate.
+Le 13 chiamate Unity con immagini hanno consumato 10.779 token input e 1.882 output. Alla tariffa configurata di $0,042/M input e output gratuiti, il costo stimato complessivo è **$0,000452718**. È una stima dai token riportati dal provider, non una lettura della fattura.
 
-![Circuito e auto alla fine del giro](Evidence/lap-overview-final.png)
+## Audit visual-only
 
-## Iterazioni rilevanti
+L'audit delle 13 richieste ha verificato:
 
-La prima prova batch ha prodotto frame neri: il driver ha frenato e il giro è fallito. È stato corretto il percorso di cattura usando `RenderPipeline.SubmitRenderRequest` e `UniversalRenderPipeline.SingleCameraRequest`, verificati nei sorgenti URP installati. La validazione ora controlla la variazione dei pixel, oltre alla presenza del JPEG, così un frame nero non passa.
+- `state` contiene solo `camera` e un'istruzione statica `task`.
+- Le domande sono sterzo, acceleratore e freno; nessuna posizione, velocità, distanza o geometria viene aggiunta al payload.
+- I byte JPEG decodificati dall'asset inviato coincidono con i 13 frame salvati.
+- Tutti i comandi automatici applicati hanno sorgente `jev`, risposta HTTP 200 ed esito `applied`.
+- I checkpoint e le distanze rimangono nel solo evaluator e non generano comandi di guida.
 
-La prima prova con rendering corretto ha completato il giro in **108,49 s**, senza reset, con 216 decisioni e errore RMS dalla linea centrale di 2,34 m. Le immagini hanno poi evidenziato piccole fessure tra le primitive sulle curve: è stata aumentata la sovrapposizione dei segmenti e ripetuta la verifica sulla superficie finale. Il risultato conclusivo è riportato nel report del giro in `Evidence/` e nel riepilogo JSON.
+Report, CSV, richieste, risposte, immagini e screenshot sono raccolti in [JevEvidence](JevEvidence/); [final-summary.json](final-summary.json) riepiloga le cinque prove del player e [payload-audit.json](JevEvidence/payload-audit.json) documenta i controlli sui payload. Nessun header Authorization o valore della chiave viene salvato.
 
-## Vincolo anti-cheating
-
-È stato ispezionato il percorso di controllo:
-
-`JPEG della camera → LocalVisionDriver / JevClient → JevDecision → VehicleController`.
-
-`LocalVisionDriver.Decide` usa esclusivamente pixel e calibrazione fissa della camera. `JevProtocol.BuildRequest` accetta esclusivamente JPEG e identificativo del modello. Non esistono riferimenti a `TrackLayout`, `ExperimentManager`, waypoint o raycast nei due percorsi decisionali. L'evaluator misura distanza e checkpoint e può solo interrompere/reset­tare il tentativo; non genera sterzo o acceleratore. Il comando di reset invalida le risposte del tentativo precedente.
-
-La fisica usa la velocità del Rigidbody per applicare motore, freni, attrito e sterzo; tale velocità non viene fornita al modello. La mappatura dei pixel della baseline assume terreno piano e calibrazione nota, senza leggere l'orientamento o la posizione del veicolo dal motore.
-
-## Milestone rispetto alla richiesta iniziale
-
-| Milestone | Stato |
-|---|---|
-| M1 scena/pista | Eseguita nel player |
-| M2 manuale | Verificata con eventi di tastiera reali dell'Input System |
-| M3 camera | Frame renderizzati, compressi, salvati e ispezionati |
-| M4 chiamata JEV con immagine | Predisposta, non eseguita senza chiave |
-| M5 risposta strutturata | Parser verificato con fixture; risposta reale ancora da provare |
-| M6 JEV controlla l'auto | Predisposta, da provare con credenziali |
-| M7 telemetria/reset | Verificati senza rete |
-| M8 tentativo di giro | Eseguito con Local Vision; JEV da provare |
-| M9 completamento giro | Raggiunto in Local Vision; nessun risultato rivendicato per JEV |
-
-## Limiti dei dati
-
-Il circuito è volutamente semplice, ampio e con colori stabili. La baseline non è stata verificata su altri circuiti, meteo, texture o ostacoli variabili. I dati di latenza/token/costo JEV restano non misurati. Le tariffe configurate provengono dalla documentazione ufficiale e le stime effettive saranno disponibili solo dopo risposte reali con usage.
+Il prossimo collaudo funzionale è un percorso più lungo con JEV e un budget esplicito; il completamento del giro resta da misurare.

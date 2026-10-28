@@ -1,4 +1,4 @@
-param([ValidateSet('local','manual','jev')][string]$Mode = 'local')
+param([ValidateSet('manual','jev')][string]$Mode = 'jev')
 $projectDirectory = Split-Path -Parent $PSScriptRoot
 $playerPath = Join-Path $projectDirectory 'Builds\Windows\JevVisionLab.exe'
 if (-not (Test-Path -LiteralPath $playerPath)) { throw 'Build mancante. In Unity: JEV Vision > Build Windows player and validate.' }

@@ -35,7 +35,7 @@ namespace JevVision
                 LastFrame.ReadPixels(new Rect(0, 0, Target.width, Target.height), 0, 0, false);
                 LastFrame.Apply(false);
                 LastJpeg = LastFrame.EncodeToJPG(config.jpegQuality);
-                LastFrame.LoadImage(LastJpeg, false); // preview and local baseline see the same decoded JPEG sent to JEV
+                LastFrame.LoadImage(LastJpeg, false); // preview shows the decoded JPEG actually sent to JEV
                 CapturedAt = Time.realtimeSinceStartupAsDouble;
                 return LastJpeg;
             }

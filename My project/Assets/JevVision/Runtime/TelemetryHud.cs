@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using UnityEngine;
 
 namespace JevVision
@@ -13,6 +14,10 @@ namespace JevVision
         public TelemetryLogger logger;
         private GUIStyle title, label, small, warning;
         private bool showHelp;
+        private bool setupInitialized;
+        private DrivingMode selectedMode;
+        private string speedText, frequencyText;
+        private GUIStyle setupTitle, setupButton, numberField;
         private void OnGUI()
         {
             if (title == null)
@@ -21,10 +26,18 @@ namespace JevVision
                 label = new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true, normal = { textColor = Color.white } };
                 small = new GUIStyle(label) { fontSize = 12, normal = { textColor = new Color(0.73f, 0.83f, 0.88f) } };
                 warning = new GUIStyle(label) { normal = { textColor = new Color(1f, 0.76f, 0.27f) } };
+                setupTitle = new GUIStyle(title) { fontSize = 30 };
+                setupButton = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
+                numberField = new GUIStyle(GUI.skin.textField) { fontSize = 18, alignment = TextAnchor.MiddleLeft };
             }
             float scale = Mathf.Min(Screen.width / 1280f, Screen.height / 800f);
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, Vector3.one * scale);
             float h = Screen.height / scale;
+            if (!controller.HasStarted)
+            {
+                DrawStartup(Screen.width / scale, h);
+                return;
+            }
             GUI.color = new Color(0.04f, 0.07f, 0.12f, 0.94f);
             GUI.DrawTexture(new Rect(14, 14, 360, h - 28), Texture2D.whiteTexture);
             GUI.color = Color.white;
@@ -33,19 +46,18 @@ namespace JevVision
             GUILayout.Label("PIXELS → DECISION → VEHICLE", small);
             GUILayout.Space(12);
             if (!string.IsNullOrEmpty(experiment.SceneError)) GUILayout.Label(experiment.SceneError, warning);
-            GUILayout.Label(controller.Mode == DrivingMode.LocalVision ? "LOCAL VISION · OFFLINE" : controller.Mode == DrivingMode.JevVision ? "JEV VISION · API" : "MANUAL · KEYBOARD", title);
-            if (controller.Mode == DrivingMode.LocalVision) GUILayout.Label("Baseline dai pixel. Nessuna chiamata JEV.", warning);
+            GUILayout.Label(controller.Mode == DrivingMode.JevVision ? "JEV VISION · API" : "MANUAL · KEYBOARD", title);
+            GUILayout.Label($"Limite {config.maximumSpeed:F2} m/s · {config.maximumSpeed * 3.6f:F1} km/h" + (controller.Mode == DrivingMode.JevVision ? $"\nFrequenza richiesta {config.decisionsPerSecond:F2} call/s" : ""), small);
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("1 Manuale")) controller.SetMode(DrivingMode.Manual);
-            if (GUILayout.Button("2 Locale")) controller.SetMode(DrivingMode.LocalVision);
-            if (GUILayout.Button("3 JEV")) controller.SetMode(DrivingMode.JevVision);
+            if (GUILayout.Button("2 JEV Vision")) controller.SetMode(DrivingMode.JevVision);
             GUILayout.EndHorizontal();
             GUILayout.Space(8);
             var command = vehicle.Command;
             GUILayout.Label($"{vehicle.Speed * 3.6f:F1} km/h   |   {vehicle.Speed:F2} m/s", title);
             GUILayout.Label($"Sterzo  {command.steering}  ({vehicle.AppliedSteering:+0.00;-0.00;0.00})\nGas  {command.throttle:F2}     Freno  {command.brake:F2}\nConfidence  {(command.confidence < 0 ? "n/d" : command.confidence.ToString("F2"))}", label);
             GUILayout.Space(7);
-            GUILayout.Label($"Giri  {experiment.Laps}  (locale {experiment.LocalLaps} / JEV {experiment.JevLaps})\nCheckpoint  {experiment.NextCheckpoint}/{config.checkpointCount}\nTempo  {experiment.Elapsed:F1}s   Tentativo  {experiment.AttemptSeconds:F1}s\nReset  {experiment.Resets}  ·  {experiment.LastResetReason}", label);
+            GUILayout.Label($"Giri  {experiment.Laps}  (JEV {experiment.JevLaps} / manuali {experiment.ManualLaps})\nCheckpoint  {experiment.NextCheckpoint}/{config.checkpointCount}\nTempo  {experiment.Elapsed:F1}s   Tentativo  {experiment.AttemptSeconds:F1}s\nReset  {experiment.Resets}  ·  {experiment.LastResetReason}", label);
             GUILayout.Space(7);
             GUILayout.Label("API  " + controller.ApiStatus, warning);
             GUILayout.Label($"Chiamate  {controller.ApiCalls}   Errori  {controller.Failures}\nLatenza  {controller.LastLatencyMs:F0} ms   Media  {controller.AverageLatencyMs:F0} ms\nToken in/out  {controller.InputTokens}/{controller.OutputTokens}", small);
@@ -58,7 +70,7 @@ namespace JevVision
             if (GUILayout.Button("Reset [R]")) experiment.ResetExperiment("user_reset");
             if (GUILayout.Button("Aiuto")) showHelp = !showHelp;
             GUILayout.EndHorizontal();
-            if (showHelp) GUILayout.Label("W/↑ gas · S/↓/Spazio freno\nA/D o ←/→ sterzo · C vista\n1 manuale · 2 locale · 3 JEV\nLa camera non contiene HUD o checkpoint.", small);
+            if (showHelp) GUILayout.Label("W/↑ gas · S/↓/Spazio freno\nA/D o ←/→ sterzo · C vista\n1 manuale · 2 JEV (anche 3)\nLa camera non contiene HUD o checkpoint.", small);
             if (!string.IsNullOrEmpty(logger.LoggingError)) GUILayout.Label("LOG ERROR: " + logger.LoggingError, warning);
             GUILayout.EndArea();
 
@@ -72,6 +84,86 @@ namespace JevVision
                 if (detail.Length > 270) detail = detail.Substring(0, 270) + "…";
                 GUI.Label(new Rect(x, 333, 280, 68), detail, small);
             }
+        }
+
+        private void DrawStartup(float width, float height)
+        {
+            if (!setupInitialized)
+            {
+                selectedMode = config.startMode;
+                speedText = config.maximumSpeed.ToString("0.##", CultureInfo.InvariantCulture);
+                frequencyText = config.decisionsPerSecond.ToString("0.##", CultureInfo.InvariantCulture);
+                setupInitialized = true;
+            }
+            GUI.color = new Color(0.015f, 0.025f, 0.04f, 0.72f);
+            GUI.DrawTexture(new Rect(0, 0, width, height), Texture2D.whiteTexture);
+            float x = (width - 640) / 2, y = (height - 660) / 2;
+            GUI.color = new Color(0.04f, 0.07f, 0.12f, 0.98f);
+            GUI.DrawTexture(new Rect(x, y, 640, 660), Texture2D.whiteTexture);
+            GUI.color = new Color(0.3f, 0.88f, 1);
+            GUI.DrawTexture(new Rect(x, y, 640, 4), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+            GUILayout.BeginArea(new Rect(x + 32, y + 26, 576, 610));
+            GUILayout.Label("PREPARA LA GUIDA", setupTitle);
+            GUILayout.Label("Scegli le impostazioni, poi premi PLAY per partire.", label);
+            GUILayout.Space(18);
+            GUILayout.Label("MODALITÀ", small);
+            GUILayout.BeginHorizontal();
+            GUI.backgroundColor = selectedMode == DrivingMode.Manual ? new Color(0.3f, 0.88f, 1) : Color.white;
+            if (GUILayout.Button(selectedMode == DrivingMode.Manual ? "✓ Manuale" : "Manuale", setupButton, GUILayout.Height(44))) selectedMode = DrivingMode.Manual;
+            GUI.backgroundColor = selectedMode == DrivingMode.JevVision ? new Color(0.3f, 0.88f, 1) : Color.white;
+            if (GUILayout.Button(selectedMode == DrivingMode.JevVision ? "✓ JEV Vision" : "JEV Vision", setupButton, GUILayout.Height(44))) selectedMode = DrivingMode.JevVision;
+            GUI.backgroundColor = Color.white;
+            GUILayout.EndHorizontal();
+            GUILayout.Space(16);
+            bool speedValid = ReadNumber(speedText, 0.5f, 8f, out float speed);
+            GUILayout.Label("VELOCITÀ MASSIMA", small);
+            GUILayout.BeginHorizontal();
+            float speedSlider = GUILayout.HorizontalSlider(speedValid ? speed : config.maximumSpeed, 0.5f, 8f, GUILayout.Width(360));
+            if (Mathf.Abs(speedSlider - (speedValid ? speed : config.maximumSpeed)) > 0.005f) speedText = speedSlider.ToString("0.##", CultureInfo.InvariantCulture);
+            speedText = GUILayout.TextField(speedText, 8, numberField, GUILayout.Width(100), GUILayout.Height(30));
+            GUILayout.Label("m/s", label, GUILayout.Width(45));
+            GUILayout.EndHorizontal();
+            speedValid = ReadNumber(speedText, 0.5f, 8f, out speed);
+            GUILayout.Label(speedValid ? $"{speed * 3.6f:F1} km/h · intervallo 0,5–8 m/s" : "Inserisci un valore tra 0,5 e 8 m/s.", speedValid ? small : warning);
+            GUILayout.Space(16);
+            GUILayout.Label("FREQUENZA CHIAMATE JEV", small);
+            GUI.enabled = selectedMode == DrivingMode.JevVision;
+            bool frequencyValid = ReadNumber(frequencyText, 0.2f, 10f, out float frequency);
+            GUILayout.BeginHorizontal();
+            float frequencySlider = GUILayout.HorizontalSlider(frequencyValid ? frequency : config.decisionsPerSecond, 0.2f, 10f, GUILayout.Width(360));
+            if (Mathf.Abs(frequencySlider - (frequencyValid ? frequency : config.decisionsPerSecond)) > 0.005f) frequencyText = frequencySlider.ToString("0.##", CultureInfo.InvariantCulture);
+            frequencyText = GUILayout.TextField(frequencyText, 8, numberField, GUILayout.Width(100), GUILayout.Height(30));
+            GUILayout.Label("call/s", label, GUILayout.Width(55));
+            GUILayout.EndHorizontal();
+            GUI.enabled = true;
+            frequencyValid = ReadNumber(frequencyText, 0.2f, 10f, out frequency);
+            if (selectedMode == DrivingMode.Manual) GUILayout.Label("In manuale: nessuna chiamata API. W/A/S/D o frecce per guidare.", small);
+            else if (!frequencyValid) GUILayout.Label("Inserisci un valore tra 0,2 e 10 chiamate al secondo.", warning);
+            else GUILayout.Label($"Un'immagine ogni {1f / frequency:F2} s. Una richiesta alla volta: la latenza può ridurre la frequenza effettiva.", small);
+            GUILayout.Space(20);
+            GUILayout.Label("AUTO FERMA · IN ATTESA DI PLAY", title);
+            GUILayout.Label("Prima di Play non parte alcuna chiamata API.", label);
+            if (selectedMode == DrivingMode.JevVision)
+                GUILayout.Label(controller.client.HasKey ? "JEV usa la chiave configurata e può consumare credito." : "Chiave JEV non configurata: il veicolo resterà frenato.", warning);
+            if (!string.IsNullOrEmpty(experiment.SceneError)) GUILayout.Label(experiment.SceneError, warning);
+            GUILayout.Space(16);
+            GUI.enabled = speedValid && (selectedMode == DrivingMode.Manual || frequencyValid) && experiment.track.GeometryMatchesSettings;
+            GUI.backgroundColor = new Color(0.3f, 0.88f, 1);
+            if (GUILayout.Button("PLAY  ·  AVVIA GUIDA", setupButton, GUILayout.Height(54)))
+            {
+                GUI.FocusControl(null);
+                experiment.StartDriving(selectedMode, frequencyValid ? frequency : config.decisionsPerSecond, speed);
+            }
+            GUI.backgroundColor = Color.white;
+            GUI.enabled = true;
+            GUILayout.EndArea();
+        }
+
+        private static bool ReadNumber(string text, float minimum, float maximum, out float value)
+        {
+            return float.TryParse(text.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out value) &&
+                !float.IsNaN(value) && !float.IsInfinity(value) && value >= minimum && value <= maximum;
         }
     }
 }

@@ -26,29 +26,56 @@ namespace JevVision
         private float accelerationSpeed, turnedDegrees, brakeSpeed;
         private Quaternion initialRotation;
         private Keyboard keyboard;
+        private RigidbodyConstraints initialConstraints;
+        private Vector3 initialPosition;
+        private float maximumTravel, maximumSpeed;
+        private float maximumHorizontalSpeed;
+        private bool setupBlocked, settingsApplied;
+        private bool startupScreenshotSaved;
         private readonly List<string> resetReasons = new List<string>();
         [Serializable] public sealed class Report
         {
             public string utc, validation, mode, result, logDirectory;
             public double seconds, rmsCenterlineError, maximumCenterlineError, bestLapSeconds;
             public float trackLengthMeters;
-            public int laps, localLaps, jevLaps, manualLaps, resets, nextCheckpoint, apiCalls, localDecisions;
+            public int laps, jevLaps, manualLaps, resets, nextCheckpoint, apiCalls, successfulCalls, failedCalls, discardedResponses;
+            public long inputTokens, outputTokens;
+            public double meanLatencyMs, estimatedCostUsd;
+            public float maximumTravelMeters, maximumSpeedMetersPerSecond;
+            public float maximumHorizontalSpeedMetersPerSecond;
             public float accelerationSpeed, turnedDegrees, brakeSpeed;
             public string[] resetReasons;
             public bool frameValid, loggingValid;
-            public string antiCheating = "Local driver: Texture2D + fixed camera calibration only. JEV: JPEG + static questions only. Checkpoints are evaluation-only.";
+            public bool startupBlocked, selectedSettingsApplied;
+            public string antiCheating = "Autonomous commands come exclusively from JEV responses to the front-camera JPEG and static questions. Checkpoints are evaluation-only.";
         }
         private void Awake()
         {
+            // All components share a session copy; UI changes never overwrite the project asset.
+            config = Instantiate(config);
+            experiment.config = controller.config = capture.config = vehicle.config = logger.config = config;
+            controller.client.config = config;
+            GetComponent<TelemetryHud>().config = config;
             string[] args = Environment.GetCommandLineArgs();
             validationMode = GetArg(args, "-jev-validation");
             string output = GetArg(args, "-jev-output");
             if (!string.IsNullOrEmpty(output)) config.outputDirectory = Path.GetFullPath(output);
             string mode = GetArg(args, "-jev-mode");
             if (mode == "manual") config.startMode = DrivingMode.Manual;
-            if (mode == "local") config.startMode = DrivingMode.LocalVision;
             if (mode == "jev") config.startMode = DrivingMode.JevVision;
-            if (validationMode == "manual" || validationMode == "resets") config.startMode = DrivingMode.Manual;
+            if (validationMode == "manual" || validationMode == "resets" || validationMode == "frame") config.startMode = DrivingMode.Manual;
+            if (validationMode == "no-key" || validationMode == "setup-jev")
+            {
+                config.startMode = DrivingMode.JevVision;
+                config.apiKeyEnvironmentVariable = "JEV_TEST_MISSING_" + Guid.NewGuid().ToString("N");
+            }
+            if (validationMode == "jev-frame" || validationMode == "jev-smoke" || validationMode == "jev")
+            {
+                config.startMode = DrivingMode.JevVision;
+                if (validationMode == "jev-frame") config.maximumApiCallsPerSession = 1;
+                if (validationMode == "jev-smoke") config.maximumApiCallsPerSession = 12;
+                config.maximumSpeed = Mathf.Min(config.maximumSpeed, 1f);
+            }
             if (float.TryParse(GetArg(args, "-jev-seconds"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float seconds)) duration = seconds;
             config.Validate();
             QualitySettings.vSyncCount = 0; Application.targetFrameRate = 60; Application.runInBackground = true;
@@ -57,7 +84,15 @@ namespace JevVision
         {
             start = phaseStarted = Time.realtimeSinceStartupAsDouble;
             initialRotation = vehicle.transform.rotation;
-            if (validationMode == "manual")
+            initialPosition = vehicle.transform.position;
+            initialConstraints = vehicle.Body.constraints;
+            if (!string.IsNullOrEmpty(validationMode) && validationMode != "setup" && validationMode != "setup-jev" && validationMode != "setup-screen")
+            {
+                experiment.StartDriving(config.startMode, config.decisionsPerSecond, config.maximumSpeed);
+                initialConstraints = vehicle.Body.constraints;
+            }
+            if (validationMode == "setup" || validationMode == "setup-jev") keyboard = InputSystem.AddDevice<Keyboard>();
+            if (validationMode == "manual" || validationMode == "resets")
             {
                 controller.SetMode(DrivingMode.Manual);
                 keyboard = InputSystem.AddDevice<Keyboard>();
@@ -67,12 +102,59 @@ namespace JevVision
                 controller.SetMode(DrivingMode.Manual);
                 config.stuckSeconds = 2;
             }
+            if (validationMode == "jev-frame") vehicle.Body.constraints = RigidbodyConstraints.FreezeAll;
         }
         private void Update()
         {
             if (string.IsNullOrEmpty(validationMode) || finishing) return;
             double elapsed = Time.realtimeSinceStartupAsDouble - start;
             double phase = Time.realtimeSinceStartupAsDouble - phaseStarted;
+            maximumTravel = Mathf.Max(maximumTravel, Vector3.Distance(initialPosition, vehicle.transform.position));
+            maximumSpeed = Mathf.Max(maximumSpeed, vehicle.Speed);
+            maximumHorizontalSpeed = Mathf.Max(maximumHorizontalSpeed, Vector3.ProjectOnPlane(vehicle.Body.linearVelocity, Vector3.up).magnitude);
+            if (validationMode == "setup-screen")
+            {
+                if (elapsed > 1 && !startupScreenshotSaved)
+                {
+                    ScreenCapture.CaptureScreenshot(Path.Combine(logger.SessionDirectory, "startup-settings.png"));
+                    startupScreenshotSaved = true;
+                }
+                if (elapsed > 3)
+                {
+                    setupBlocked = !controller.HasStarted && controller.Paused && vehicle.Held && controller.ApiCalls == 0 && maximumTravel < 0.001f;
+                    capture.Capture();
+                    Finish();
+                }
+            }
+            if (validationMode == "setup" || validationMode == "setup-jev")
+            {
+                if (stage == 0)
+                {
+                    if (elapsed > 0.7 && !startupScreenshotSaved)
+                    {
+                        ScreenCapture.CaptureScreenshot(Path.Combine(logger.SessionDirectory, "startup-settings.png"));
+                        startupScreenshotSaved = true;
+                    }
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W, Key.P, Key.Digit2));
+                    controller.SetPaused(false); // Pause shortcuts and direct resume must not bypass Play.
+                    if (elapsed > 2)
+                    {
+                        setupBlocked = !controller.HasStarted && controller.Paused && vehicle.Held && controller.ApiCalls == 0 && maximumTravel < 0.001f && experiment.Elapsed == 0 && experiment.EvaluationSamples == 0;
+                        DrivingMode selectedMode = validationMode == "setup-jev" ? DrivingMode.JevVision : DrivingMode.Manual;
+                        settingsApplied = experiment.StartDriving(selectedMode, 0.5f, 0.8f) && controller.Mode == selectedMode && !controller.Paused && !vehicle.Held && Mathf.Approximately(config.decisionsPerSecond, 0.5f) && Mathf.Approximately(config.maximumSpeed, 0.8f) && ReferenceEquals(config, controller.config) && ReferenceEquals(config, vehicle.config);
+                        initialConstraints = vehicle.Body.constraints;
+                        phaseStarted = Time.realtimeSinceStartupAsDouble;
+                        stage = 1;
+                    }
+                }
+                else if (phase < 2) InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W));
+                else
+                {
+                    if (stage == 1) { accelerationSpeed = vehicle.Speed; stage = 2; }
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Space));
+                    if (phase > 3) { brakeSpeed = vehicle.Speed; capture.Capture(); Finish(); }
+                }
+            }
             if (validationMode == "manual")
             {
                 if (elapsed < 2) InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W));
@@ -99,35 +181,47 @@ namespace JevVision
                 {
                     if (stage == 0) vehicle.Body.position = new Vector3(0, 0.1f, 0);
                     if (stage == 1) vehicle.Body.rotation = Quaternion.Euler(0, 0, 90);
-                    if (stage == 2) { controller.SetMode(DrivingMode.LocalVision); controller.vehicle.SetCommand(JevDecision.Stop("validation_stuck")); }
+                    if (stage == 2)
+                    {
+                        vehicle.Body.constraints = RigidbodyConstraints.FreezeAll;
+                        InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W));
+                    }
                     if (stage >= 3) Finish();
                 }
             }
-            if (elapsed > duration || validationMode == "lap" && experiment.LocalLaps > 0 || validationMode == "jev" && experiment.JevLaps > 0) Finish();
-        }
-        private void LateUpdate()
-        {
-            if (validationMode == "resets" && stage == 2) vehicle.SetCommand(JevDecision.Stop("validation_stuck"));
+            bool requestBudgetFinished = (validationMode == "jev-frame" || validationMode == "jev-smoke") &&
+                controller.ApiCalls >= config.maximumApiCallsPerSession && controller.CompletedCalls == controller.ApiCalls;
+            if (elapsed > duration || requestBudgetFinished || validationMode == "jev" && experiment.JevLaps > 0) Finish();
         }
         private void Finish()
         {
             if (finishing) return; finishing = true;
             if (keyboard != null) InputSystem.QueueStateEvent(keyboard, new KeyboardState());
+            vehicle.Body.constraints = initialConstraints;
             bool frameValid = capture.LastJpeg != null && capture.LastJpeg.Length > 500 && capture.LastFrame.width >= 280 && HasSceneContent(capture.LastFrame);
             bool logsValid = string.IsNullOrEmpty(logger.LoggingError) && Directory.Exists(logger.SessionDirectory);
-            bool passed = validationMode == "lap" ? experiment.LocalLaps > 0 && experiment.Resets == 0 && controller.ApiCalls == 0 :
-                validationMode == "manual" ? accelerationSpeed > 1 && turnedDegrees > 5 && brakeSpeed < 0.2f :
+            bool passed = validationMode == "setup-screen" ? setupBlocked && File.Exists(Path.Combine(logger.SessionDirectory, "startup-settings.png")) :
+                validationMode == "setup-jev" ? setupBlocked && settingsApplied && maximumTravel < 0.1f && vehicle.Speed < 0.1f && controller.ApiCalls == 0 && controller.ApiStatus.StartsWith("missing ") :
+                validationMode == "setup" ? setupBlocked && settingsApplied && maximumHorizontalSpeed <= 0.81f && accelerationSpeed > 0.7f && brakeSpeed < 0.1f && controller.ApiCalls == 0 :
+                validationMode == "manual" ? accelerationSpeed > 0.8f && turnedDegrees > 5 && brakeSpeed < 0.2f :
                 validationMode == "resets" ? resetReasons.Contains("off_track") && resetReasons.Contains("rollover") && resetReasons.Contains("stuck") :
-                validationMode == "frame" ? controller.LocalDecisions > 0 && vehicle.Speed > 0.5f && experiment.Resets == 0 && controller.ApiCalls == 0 :
+                validationMode == "frame" ? experiment.Resets == 0 && controller.ApiCalls == 0 :
+                validationMode == "jev-frame" ? controller.ApiCalls == 1 && controller.SuccessfulCalls == 1 && maximumTravel < 0.1f :
+                validationMode == "jev-smoke" ? controller.SuccessfulCalls >= 3 && maximumTravel > 0.5f && experiment.Resets == 0 :
                 validationMode == "jev" ? experiment.JevLaps > 0 : validationMode == "no-key" ? controller.ApiCalls == 0 && vehicle.Speed < 0.1f : false;
             var report = new Report { utc = DateTime.UtcNow.ToString("O"), validation = validationMode, mode = controller.Mode.ToString(),
                 result = passed && frameValid && logsValid ? "PASS" : "FAIL", logDirectory = logger.SessionDirectory,
-                seconds = experiment.Elapsed, laps = experiment.Laps, localLaps = experiment.LocalLaps, jevLaps = experiment.JevLaps, manualLaps = experiment.ManualLaps,
+                seconds = experiment.Elapsed, laps = experiment.Laps, jevLaps = experiment.JevLaps, manualLaps = experiment.ManualLaps,
                 trackLengthMeters = experiment.track.Length,
-                resets = experiment.Resets, nextCheckpoint = experiment.NextCheckpoint, apiCalls = controller.ApiCalls, localDecisions = controller.LocalDecisions,
+                resets = experiment.Resets, nextCheckpoint = experiment.NextCheckpoint, apiCalls = controller.ApiCalls,
+                successfulCalls = controller.SuccessfulCalls, failedCalls = controller.Failures, discardedResponses = controller.DiscardedResponses,
+                inputTokens = controller.InputTokens, outputTokens = controller.OutputTokens, meanLatencyMs = controller.AverageLatencyMs,
+                estimatedCostUsd = controller.EstimatedCost, maximumTravelMeters = maximumTravel, maximumSpeedMetersPerSecond = maximumSpeed,
+                maximumHorizontalSpeedMetersPerSecond = maximumHorizontalSpeed,
                 rmsCenterlineError = Math.Sqrt(experiment.SumSquaredCenterlineError / Math.Max(1, experiment.EvaluationSamples)), maximumCenterlineError = experiment.MaximumCenterlineError,
                 bestLapSeconds = experiment.BestLapSeconds, accelerationSpeed = accelerationSpeed, turnedDegrees = turnedDegrees, brakeSpeed = brakeSpeed,
-                resetReasons = resetReasons.ToArray(), frameValid = frameValid, loggingValid = logsValid };
+                resetReasons = resetReasons.ToArray(), frameValid = frameValid, loggingValid = logsValid,
+                startupBlocked = setupBlocked, selectedSettingsApplied = settingsApplied };
             logger.RecordEvent("validation_complete", report.result);
             logger.Flush();
             File.WriteAllText(Path.Combine(logger.SessionDirectory, "report.json"), JsonUtility.ToJson(report, true));

@@ -16,4 +16,4 @@ La correzione rigenera insieme strada, barriere, auto e checkpoint con gli scrip
 
 La build Windows viene generata con Unity 6000.3.26f1. I controlli verificano chiusura, curve in entrambi i versi, distanze dalla spline, mesh salvate, checkpoint invisibili e firma coerente. Sono presenti anche casi negativi che modificano larghezza e punti senza rigenerare la scena e richiedono che la firma risulti invalida.
 
-I risultati dei giri sulla pista mista sono in `Validation/CircuitEvidence/`; i report precedenti sotto `Validation/Evidence/` descrivono invece l'ovale iniziale. Questa distinzione evita di attribuire alla nuova pista un giro eseguito sul tracciato vecchio.
+I risultati storici dei giri sulla pista mista sono in `Validation/CircuitEvidence/`; quelli sotto `Validation/Evidence/` descrivono l'ovale iniziale. Entrambi usavano l'algoritmo a colori rimosso dal codice il 28 ottobre 2026. Le prove attuali con il modello JEV sono in `Validation/JevEvidence/`: una richiesta a veicolo fermo e una guida breve, senza rivendicare un giro completo del modello.

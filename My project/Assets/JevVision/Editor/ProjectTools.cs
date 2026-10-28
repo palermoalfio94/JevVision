@@ -91,15 +91,11 @@ namespace JevVision.Editor
             foreach (string forbidden in new[] { "position", "coordinate", "waypoint", "velocity", "checkpoint", "raycast", "centerline", "speed", "api_key" })
                 Assert(!payload.ToLowerInvariant().Contains(forbidden), "payload excludes " + forbidden);
             var config = ScriptableObject.CreateInstance<ExperimentConfig>();
-            var image = new Texture2D(280, 280, TextureFormat.RGB24, false);
-            Color32[] pixels = new Color32[280 * 280];
-            for (int i = 0; i < pixels.Length; i++) pixels[i] = new Color32(30, 110, 55, 255);
-            image.SetPixels32(pixels); image.Apply();
-            Assert(LocalVisionDriver.Decide(image, config).brake == 1, "lost road safely brakes");
-            for (int y = 0; y < 280; y++) for (int x = 110; x < 270; x++) pixels[y * 280 + x] = new Color32(80, 80, 80, 255);
-            image.SetPixels32(pixels); image.Apply();
-            Assert(LocalVisionDriver.Decide(image, config).steeringValue > 0, "right-shifted pixels steer right");
-            UnityEngine.Object.DestroyImmediate(image); UnityEngine.Object.DestroyImmediate(config);
+            Assert(Enum.GetValues(typeof(DrivingMode)).Length == 2, "only manual and JEV modes exist");
+            config.startMode = (DrivingMode)1;
+            config.Validate();
+            Assert(config.startMode == DrivingMode.Manual, "retired serialized mode safely migrates to manual");
+            UnityEngine.Object.DestroyImmediate(config);
             var track = UnityEngine.Object.FindFirstObjectByType<TrackLayout>();
             Assert(track != null && Vector3.Distance(track.Point(0), track.Point(track.Length - 0.001f)) < 0.01f, "closed circuit");
             Assert(track.Length > 400 && track.controlPoints.Length > 12, "reference-shaped circuit replaces oval");

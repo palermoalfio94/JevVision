@@ -2,15 +2,16 @@ using UnityEngine;
 
 namespace JevVision
 {
-    public enum DrivingMode { Manual, LocalVision, JevVision }
+    // Keep the serialized value of JevVision; value 1 belonged to a removed mode.
+    public enum DrivingMode { Manual = 0, JevVision = 2 }
 
     [CreateAssetMenu(menuName = "JEV Vision/Experiment settings")]
     public sealed class ExperimentConfig : ScriptableObject
     {
         [Header("Start and control")]
-        public DrivingMode startMode = DrivingMode.LocalVision;
+        public DrivingMode startMode = DrivingMode.JevVision;
         [Range(0.2f, 10f)] public float decisionsPerSecond = 2f;
-        [Range(0.5f, 8f)] public float maximumSpeed = 2.2f;
+        [Range(0.5f, 8f)] public float maximumSpeed = 1.2f;
         [Range(5f, 40f)] public float maximumSteeringDegrees = 24f;
         public float acceleration = 2.5f;
         public float braking = 7f;
@@ -36,23 +37,19 @@ namespace JevVision
         public int maximumApiCallsPerSession = 600;
         public float maximumEstimatedCostUsd = 0.05f;
 
-        [Header("Central price card — TypeSafe models, checked 2026-10-25")]
+        [Header("Central price card — TypeSafe models, checked 2026-10-28")]
         public double inputUsdPerMillionTokens = 0.042;
         public double outputUsdPerMillionTokens = 0;
         public string pricingSource = "https://docs.typesafe.ai/models";
-        public string pricingChecked = "2026-10-25";
+        public string pricingChecked = "2026-10-28";
 
         [Header("Evaluation only — never included in the model request")]
         public float offTrackGraceSeconds = 1.5f;
         public float stuckSeconds = 12f;
-        public float attemptTimeoutSeconds = 420f;
+        public float attemptTimeoutSeconds = 600f;
         public float severeCollisionImpulse = 1200f;
         public int checkpointCount = 16;
         public int maximumAutomaticResets = 20;
-
-        [Header("Local pixel baseline — does not call JEV")]
-        [Range(0.2f, 0.6f)] public float baselineScanRow = 0.46f;
-        [Range(0.5f, 2f)] public float baselineSteeringGain = 1f;
 
         [Header("Logging")]
         public bool saveDecisionFrames = true;
@@ -61,6 +58,7 @@ namespace JevVision
 
         public void Validate()
         {
+            if (startMode != DrivingMode.Manual && startMode != DrivingMode.JevVision) startMode = DrivingMode.Manual;
             imageWidth = Mathf.Clamp(imageWidth, 280, 1568);
             imageHeight = Mathf.Clamp(imageHeight, 280, 1568);
             decisionsPerSecond = Mathf.Clamp(decisionsPerSecond, 0.2f, 10f);

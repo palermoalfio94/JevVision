@@ -14,11 +14,28 @@ namespace JevVision
         public Rigidbody Body { get; private set; }
         public float LastCollisionImpulse { get; private set; }
         public int CollisionCount { get; private set; }
-        private void Awake() => Body = GetComponent<Rigidbody>();
+        public bool Held { get; private set; }
+        private RigidbodyConstraints drivingConstraints;
+        private void Awake()
+        {
+            Body = GetComponent<Rigidbody>();
+            SetHeld(true);
+        }
+        public void SetHeld(bool held)
+        {
+            if (Held == held) return;
+            if (Body == null) Body = GetComponent<Rigidbody>();
+            if (held) drivingConstraints = Body.constraints;
+            Body.linearVelocity = Vector3.zero;
+            Body.angularVelocity = Vector3.zero;
+            Body.constraints = held ? RigidbodyConstraints.FreezeAll : drivingConstraints;
+            Held = held;
+            SetCommand(JevDecision.Stop("waiting_for_play"));
+        }
         public void SetCommand(JevDecision decision) => Command = decision ?? JevDecision.Stop();
         private void FixedUpdate()
         {
-            if (config == null) return;
+            if (config == null || Held) return;
             AppliedSteering = Mathf.MoveTowards(AppliedSteering, Mathf.Clamp(Command.steeringValue, -1, 1), config.steeringSlewPerSecond * Time.fixedDeltaTime);
             Vector3 forward = transform.forward;
             Vector3 right = transform.right;

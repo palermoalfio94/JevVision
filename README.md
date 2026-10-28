@@ -1,12 +1,13 @@
 # JEV Vision Lab
 
-Il progetto Unity è nella cartella **My project** e usa Unity **6000.3.26f1**.
+Progetto Unity **6000.3.26f1**, nella cartella **My project**.
 
 - Scena: `My project/Assets/Scenes/JevVisionCircuit.unity`.
-- Avvio senza credenziali: apri la scena e premi Play; parte **Local Vision**, basata sui pixel della camera.
-- Player Windows: `My project/Builds/Windows/JevVisionLab.exe`.
+- Due modalità: **Manuale** e **JEV Vision**, unica guida autonoma.
+- Il precedente algoritmo basato sui colori è stato eliminato dal codice.
+- Chiave: `TYPESAFE_API_KEY`, configurabile con `My project/scripts/set-jev-key.ps1`.
 - [Istruzioni complete](My%20project/README.md).
-- [Risultati delle verifiche](My%20project/Validation/RESULTS.md).
-- La scena attuale usa il circuito misto ricavato dal disegno dell'utente: circa 482 m, curve in entrambe le direzioni. [Vista dall'alto](My%20project/Validation/CircuitEvidence/circuit-plan.png).
+- [Risultati e limiti delle verifiche](My%20project/Validation/RESULTS.md).
+- [Forma del circuito misto](My%20project/Validation/CircuitEvidence/circuit-plan.png).
 
-JEV Vision è una modalità separata, pronta per una futura chiave `TYPESAFE_API_KEY`. I giri della baseline locale sono identificati come locali.
+All'avvio appare una schermata per scegliere Manuale/JEV, velocità massima e frequenza delle chiamate JEV. L'auto è bloccata e nessuna richiesta API parte prima del pulsante **PLAY · AVVIA GUIDA** dentro il gioco. Durante la guida il tasto 1 seleziona il manuale, 2 (anche 3) seleziona JEV. Nessuna chiave è contenuta nel repository.

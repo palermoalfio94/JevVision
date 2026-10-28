@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c8509d74b2a8b2d46920beeca59c2eef, type: 3}
   m_Name: ExperimentSettings
   m_EditorClassIdentifier: Assembly-CSharp::JevVision.ExperimentConfig
-  startMode: 1
+  startMode: 2
   decisionsPerSecond: 2
-  maximumSpeed: 2.2
+  maximumSpeed: 1.2
   maximumSteeringDegrees: 24
   acceleration: 2.5
   braking: 7
@@ -38,15 +38,13 @@ MonoBehaviour:
   inputUsdPerMillionTokens: 0.042
   outputUsdPerMillionTokens: 0
   pricingSource: https://docs.typesafe.ai/models
-  pricingChecked: 2026-10-25
+  pricingChecked: 2026-10-28
   offTrackGraceSeconds: 1.5
   stuckSeconds: 12
-  attemptTimeoutSeconds: 420
+  attemptTimeoutSeconds: 600
   severeCollisionImpulse: 1200
   checkpointCount: 16
   maximumAutomaticResets: 20
-  baselineScanRow: 0.46
-  baselineSteeringGain: 1
   saveDecisionFrames: 1
   debugOverlay: 1
   outputDirectory: 

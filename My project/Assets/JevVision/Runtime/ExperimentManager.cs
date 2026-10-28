@@ -14,7 +14,6 @@ namespace JevVision
         public TelemetryLogger logger;
         public int Resets { get; private set; }
         public int Laps { get; private set; }
-        public int LocalLaps { get; private set; }
         public int JevLaps { get; private set; }
         public int ManualLaps { get; private set; }
         public int NextCheckpoint { get; private set; } = 1;
@@ -27,14 +26,12 @@ namespace JevVision
         public float MaximumCenterlineError { get; private set; }
         public string LastResetReason { get; private set; } = "none";
         public string SceneError { get; private set; } = "";
-        public double Elapsed => Time.realtimeSinceStartupAsDouble - started;
-        private double started;
+        public double Elapsed { get; private set; }
         private float offRoadTime, stuckTime;
         private Vector3 lastProgressPosition;
         private DrivingMode lapMode;
         private bool mixedModeLap, lapPaused;
         private int lapStartResets;
-        private void Awake() => started = Time.realtimeSinceStartupAsDouble;
         private void Start()
         {
             if (!track.GeometryMatchesSettings)
@@ -44,17 +41,36 @@ namespace JevVision
                 logger.RecordEvent("scene_geometry_mismatch", SceneError);
                 Debug.LogError(SceneError);
             }
-            started = Time.realtimeSinceStartupAsDouble;
             lapMode = config.startMode;
             lastProgressPosition = vehicle.transform.position;
+        }
+        public bool StartDriving(DrivingMode mode, float callsPerSecond, float maximumSpeed)
+        {
+            if (controller.HasStarted || !track.GeometryMatchesSettings) return false;
+            config.startMode = mode;
+            config.decisionsPerSecond = callsPerSecond;
+            config.maximumSpeed = maximumSpeed;
+            config.Validate();
+            // Slow schedules must allow a command to survive until the next scheduled frame.
+            config.maximumDecisionAgeSeconds = Mathf.Max(config.maximumDecisionAgeSeconds, 1f / config.decisionsPerSecond + 0.5f);
+            lapMode = config.startMode;
+            mixedModeLap = lapPaused = false;
+            lastProgressPosition = vehicle.transform.position;
+            logger.SaveConfiguration();
+            controller.BeginDriving(config.startMode);
+            logger.RecordEvent("driving_start", "mode=" + config.startMode + ";hz=" + config.decisionsPerSecond.ToString(System.Globalization.CultureInfo.InvariantCulture) + ";maximumSpeed=" + config.maximumSpeed.ToString(System.Globalization.CultureInfo.InvariantCulture));
             logger.RecordEvent("attempt_start", "1");
+            return true;
         }
         private void Update()
         {
+            if (!controller.HasStarted) return;
+            if (!controller.Paused) Elapsed += Time.unscaledDeltaTime;
             if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame) ResetExperiment("user_reset");
         }
         private void FixedUpdate()
         {
+            if (!controller.HasStarted) return;
             if (!string.IsNullOrEmpty(SceneError)) { if (!controller.Paused) controller.SetPaused(true); return; }
             if (controller.Paused) { lapPaused = true; return; }
             if (controller.Mode != lapMode) mixedModeLap = true;
@@ -67,7 +83,8 @@ namespace JevVision
             if ((vehicle.transform.position - lastProgressPosition).sqrMagnitude > 0.25f)
             { stuckTime = 0; lastProgressPosition = vehicle.transform.position; }
             else stuckTime += Time.fixedDeltaTime;
-            bool canDrive = controller.Mode == DrivingMode.LocalVision || controller.Mode == DrivingMode.JevVision && controller.SuccessfulCalls > 0;
+            bool canDrive = controller.Mode == DrivingMode.JevVision && controller.SuccessfulCalls > 0 ||
+                controller.Mode == DrivingMode.Manual && vehicle.Command.throttle > 0.05f && vehicle.Command.brake < 0.1f;
             string failure = offRoadTime > config.offTrackGraceSeconds ? "off_track" :
                 Vector3.Dot(vehicle.transform.up, Vector3.up) < 0.35f ? "rollover" :
                 vehicle.transform.position.y < -2 || vehicle.transform.position.y > 5 ? "invalid_height" :
@@ -78,14 +95,13 @@ namespace JevVision
         }
         public void PassCheckpoint(int index, bool forward)
         {
-            if (!forward || index != NextCheckpoint || controller.Paused) return;
+            if (!controller.HasStarted || !forward || index != NextCheckpoint || controller.Paused) return;
             logger.RecordEvent("checkpoint", index.ToString());
             if (index == 0)
             {
                 Laps++;
                 if (!mixedModeLap && !lapPaused && Resets == lapStartResets)
                 {
-                    if (lapMode == DrivingMode.LocalVision) LocalLaps++;
                     if (lapMode == DrivingMode.JevVision) JevLaps++;
                     if (lapMode == DrivingMode.Manual) ManualLaps++;
                 }
@@ -101,6 +117,7 @@ namespace JevVision
         }
         public void ResetExperiment(string reason)
         {
+            if (!controller.HasStarted) return;
             logger.RecordEvent("attempt_end", reason + ";checkpoint=" + NextCheckpoint);
             Resets++;
             LastResetReason = reason;

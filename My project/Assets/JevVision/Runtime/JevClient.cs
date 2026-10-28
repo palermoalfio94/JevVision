@@ -16,6 +16,7 @@ namespace JevVision
             public JevDecision decision;
             public JevProtocol.Response response;
             public string raw = "";
+            public string requestJson = "";
             public string error = "";
             public long httpStatus;
             public double latencyMs;
@@ -46,7 +47,8 @@ namespace JevVision
             if (!Uri.TryCreate(config.endpoint, UriKind.Absolute, out Uri uri) || uri.Scheme != "https")
             { result.error = "API endpoint must use HTTPS."; completed(result); yield break; }
             if (Busy) { result.error = "Request already in flight."; completed(result); yield break; }
-            byte[] body = Encoding.UTF8.GetBytes(JevProtocol.BuildRequest(jpeg, config.model));
+            result.requestJson = JevProtocol.BuildRequest(jpeg, config.model);
+            byte[] body = Encoding.UTF8.GetBytes(result.requestJson);
             double start = Time.realtimeSinceStartupAsDouble;
             using (var request = new UnityWebRequest(config.endpoint, "POST"))
             {
