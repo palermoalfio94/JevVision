@@ -1,160 +1,195 @@
-# JEV Vision Lab
+# JEV Vision Lab — project guide
 
-Prototipo Unity di guida su circuito chiuso: **l'unico controllo autonomo è JEV**, che riceve esclusivamente il JPEG della camera frontale e restituisce sterzo e acceleratore. Resta disponibile il controllo manuale per verificare fisica e pista. Il precedente algoritmo basato sui colori è stato eliminato dal progetto il 28 ottobre 2026.
+This Unity prototype uses Jev to drive around a closed circuit from front-camera images. Its only autonomous controller is JEV Vision; Manual mode is available for driving and checking the vehicle physics. The previous color-based driver was removed on October 28, 2026.
 
-Versioni: **Unity 6000.3.26f1**, URP 17.3.0, Input System 1.20.0.
+Project versions: **Unity 6000.3.26f1**, **URP 17.3.0**, and **Input System 1.20.0**. Open this directory (`My project`) in Unity Hub. Documentation updated November 1, 2026.
 
-## Avvio
+## Start in the editor
 
-1. Aprire questa cartella (`My project`) con Unity Hub.
-2. Aprire `Assets/Scenes/JevVisionCircuit.unity`.
-3. Configurare `TYPESAFE_API_KEY` con `scripts/set-jev-key.ps1`.
-4. Premere **Play** nell'editor: appare la schermata **Prepara la guida**, con auto bloccata e zero richieste API.
-5. Scegliere **Manuale** o **JEV Vision**, la **velocità massima** (0,5–8 m/s, con conversione in km/h) e, per JEV, la **frequenza richiesta** (0,2–10 call/s). Slider e campi numerici accettano anche valori decimali con virgola.
-6. Premere **PLAY · AVVIA GUIDA** dentro il gioco. In manuale usare W/↑ per il gas e A/D/←/→ per lo sterzo; in JEV iniziano le richieste API, che possono consumare credito. Senza una chiave valida non viene applicato gas.
+1. Open `Assets/Scenes/JevVisionCircuit.unity`.
+2. For JEV mode, run the key setup script from this directory:
 
-Le impostazioni si applicano alla sessione e vengono salvate nel suo `config.json`, senza modificare l'asset del progetto. Prima di Play, neppure i tasti P, 1/2 o l'acceleratore avviano la guida. Il cronometro parte con la guida e si ferma durante le pause. La frequenza è un massimo: c'è sempre una sola richiesta in volo. Per intervalli lunghi la validità del comando è almeno l'intervallo tra chiamate più 0,5 s.
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts/set-jev-key.ps1
+   ```
 
-Il player Windows è `Builds/Windows/JevVisionLab.exe`. Per avviarlo: `powershell -ExecutionPolicy Bypass -File scripts/play.ps1`. Il parametro `-Mode manual` permette di guidare senza API. La build è rigenerabile con **JEV Vision > Build Windows player and validate**.
+3. Press Play in the Unity editor. The startup panel, **PREPARA LA GUIDA**, appears with the car held and no API requests.
+4. Choose **Manuale** or **JEV Vision**, maximum speed from **0.5 to 8 m/s**, and, for JEV, a requested frequency from **0.2 to 10 calls/s**. Sliders and numeric fields support decimal points or commas. Speed is also displayed in km/h.
+5. Press **PLAY · AVVIA GUIDA** inside the game. Manual mode needs no API key; JEV mode starts sending images and may consume API credit.
 
-Il circuito misto di circa 482 m riprende il [perimetro dell'utente](Documentation/Circuit-reference.png), con carreggiata di 12 m e curve in entrambe le direzioni. Le cinque mesh continue della strada sono generate in `Assets/JevVision/Generated`; barriere e auto usano primitive. **Create or rebuild circuit scene** rigenera strada, partenza e checkpoint insieme. Una firma impedisce di guidare una scena non coerente con la spline di valutazione. [Dettagli](Documentation/Circuit.md).
+The UI currently uses Italian labels. Settings apply to a shared runtime copy of the configuration asset and are written to the session's `config.json`. They do not overwrite the project asset. Keyboard shortcuts do not bypass the startup screen. The session timer starts with driving and stops during pauses.
 
-Le barriere sono **blu e alte 1,5 m**, con base a terra (in precedenza 0,9 m). Colore e altezza sono salvati nella scena e nel materiale `Rail`, e riportati nel generatore: una futura rigenerazione conserva questi valori.
+## Controls and decision display
 
-All'avvio vengono aggiunti alberi low poly fuori strada, nel gruppo `Roadside low poly trees`: tronchi semplici e chiome coniche a sei lati, due tonalità di verde e dimensioni variabili. Una distribuzione deterministica mantiene alberi e chiome oltre le barriere, controllando la distanza da tutto il circuito. Sono elementi visivi senza collider, visibili anche alla camera JEV. Non aggiungono campi al payload.
-
-Le strisce gialle centrali sono lunghe 1,6 m e si ripetono ogni **4 m** (in precedenza 8 m): frequenza raddoppiata e spazio vuoto fra le strisce ridotto a 2,4 m. Anche le scene salvate prima della modifica aggiornano le strisce automaticamente all'avvio della guida.
-
-## Modalità e tastiera
-
-| Comando | Azione |
+| Control | Action |
 |---|---|
-| 1 | Manuale, senza API |
-| 2 | JEV Vision (anche 3 per compatibilità con i vecchi comandi) |
-| W / freccia su | Acceleratore manuale |
-| A-D / frecce laterali | Sterzo manuale |
-| P | Pausa/riprendi il veicolo |
-| R | Reset del tentativo |
-| C | Vista osservatore: inseguimento / panoramica |
+| 1 | Switch to Manual; no API calls |
+| 2 | Switch to JEV Vision; 3 is a compatibility alias |
+| W / Up Arrow | Manual acceleration |
+| A-D / Left-Right Arrow | Manual steering |
+| P | Pause or resume the vehicle |
+| R | Reset the attempt |
+| C | Switch observer camera between chase and overview |
 
-In manuale rilasciare W/↑ per procedere per inerzia; P mette in pausa il veicolo. All'avvio l'auto rimane immobilizzata fino al pulsante Play.
+Release the accelerator to coast. Pause holds the Rigidbody in place. The current driving protocol has no active braking command.
 
-Durante la guida i pulsanti dell'HUD replicano modalità, pausa e reset; mostrano anche velocità massima e frequenza impostate. Non esiste una modalità automatica offline o un fallback al controllo a colori.
+The large **DECISIONI JEV** panel at the top right shows the model's steering and throttle choices and whether they are being applied. The debug overlay adds the actual JPEG preview and raw response below it. The HUD also exposes mode, pause, reset, API counters, latency, and session settings. The model's camera excludes the HUD and invisible evaluation gates.
 
-Il pannello **DECISIONI JEV**, sempre visibile in alto a destra durante la guida, mostra in grande sterzo e gas restituiti dal modello. Indica se la decisione è applicata, in attesa, scaduta o sospesa; in manuale non presenta comandi JEV come attivi. L'anteprima del JPEG e il dettaglio della risposta sono sotto il pannello, se il debug overlay è abilitato.
+## Credentials
 
-## Credenziali
+The key setup script prompts with hidden input and saves **`TYPESAFE_API_KEY`** in the Windows user environment, under `HKEY_CURRENT_USER\Environment`. This is persistent local configuration, not an encrypted secret vault. Run the script again to replace the key.
 
-Eseguire sul computer: `powershell -ExecutionPolicy Bypass -File scripts/set-jev-key.ps1`. L'inserimento è nascosto. Lo script salva la chiave nella variabile d'ambiente utente **TYPESAFE_API_KEY**, nel registro Windows `HKEY_CURRENT_USER\Environment`, fuori dal repository. È persistente e non è un archivio cifrato di segreti.
+`JevClient` reads the process environment first, then the Windows user environment. It sends the key only through the Authorization header to the configured HTTPS endpoint. The key is not part of the JSON request, image, configuration asset, or session logs. The client disables redirects and redacts the configured key from response text.
 
-`JevClient` legge la variabile del processo oppure quella utente Windows. La chiave viene inviata solo nell'header Authorization all'endpoint HTTPS configurato; non è contenuta nei frame, nel JSON della richiesta, nell'Inspector o nei log. Per sostituirla rieseguire lo script. Per rimuoverla: `[Environment]::SetEnvironmentVariable('TYPESAFE_API_KEY', $null, 'User')`.
+To remove the user-scoped value:
 
-Il player è destinato all'uso desktop locale; per distribuire il software a terzi custodire la chiave su un backend. [Contratto e fonti JEV](Documentation/JEV-API.md).
+```powershell
+[Environment]::SetEnvironmentVariable('TYPESAFE_API_KEY', $null, 'User')
+```
 
-## Parametri
+The repository contains the variable name and setup code, not a shared API key. Each user supplies their own credential. For a shared hosted application, keep the service credential on a backend. `.env`, `.env.*` except `.env.example`, `*.key`, local runs, and generated build folders are ignored by Git; exclusions do not remove files already committed to history.
 
-Selezionare `Assets/JevVision/Resources/ExperimentSettings.asset`.
+## Configuration
 
-| Parametro | Valore iniziale |
+Select `Assets/JevVision/Resources/ExperimentSettings.asset` to change defaults.
+
+| Setting | Default |
 |---|---|
-| Start Mode | JevVision |
-| Maximum Speed | 1,2 m/s, configurabile |
-| Decisions Per Second | 2 Hz massimi, una sola richiesta in volo |
-| Maximum Steering Degrees | 24 gradi |
-| Throttle Scale | 0,7 |
-| Frame | JPEG 280 x 280, qualità 80 |
-| Camera | FOV 65 gradi, altezza 1,5 m, pitch 8 gradi |
-| Timeout | 8 s |
-| Maximum Decision Age | 2 s dall'acquisizione, poi gas rilasciato |
-| Model | jev-1.14.0 |
+| Start Mode | JevVision, selected on the startup screen |
+| Maximum Speed | 1.2 m/s |
+| Decisions Per Second | 2 requested calls/s; one request in flight |
+| Maximum Steering Degrees | 24° |
+| Throttle Scale | 0.7 |
+| Camera image | JPEG 280 × 280, quality 80 |
+| Camera pose | FOV 65°, height 1.5 m, pitch 8° |
+| HTTP timeout | 8 s |
+| Maximum Decision Age | 2 s from capture, adjusted for slow schedules |
+| Maximum Backoff | 30 s |
+| Model | `jev-1.14.0` |
 | Maximum API Calls Per Session | 600 |
-| Maximum Estimated Cost USD | 0,05 |
+| Maximum Estimated Cost | USD 0.05 |
 | Attempt Timeout | 600 s |
 
-Risoluzione, JPEG, frequenza, velocità, sterzo, timeout, età massima del comando, budget e logging sono configurabili. Per cambiare la posa/FOV della camera o i checkpoint rigenerare la scena. I parametri del vecchio algoritmo a colori sono stati rimossi.
+On starting a session, the allowed decision age becomes the greater of its configured value and `1 / callsPerSecond + 0.5` seconds. The actual request rate may be lower than the requested rate because of latency or retry delays. Requests are never queued to catch up.
 
-La fisica usa un Rigidbody e un modello dinamico a bicicletta: accelerazione, resistenza al rotolamento, attrito laterale e contatti reali con le barriere. Rollio/beccheggio sono vincolati per la stabilità V1; non si simula una sospensione realistica.
+Rebuild the scene after changing the camera's generated pose/FOV or track/checkpoint geometry. The vehicle uses Rigidbody contacts and a bicycle-style steering model, with rolling resistance and lateral damping. Roll and pitch are constrained; realistic suspension is not simulated.
 
-## Architettura e vincolo visual-only
+## Camera-only control path
 
 ```mermaid
 flowchart TD
-    A[Camera frontale] --> B[JPEG]
-    B --> C[JEV: tre domande choice]
-    C --> D[JevDecision: sterzo / gas]
+    A[Front camera] --> B[JPEG capture]
+    B --> C[Jev: two choice questions]
+    C --> D[JevDecision: steering and throttle]
     D --> E[VehicleController]
-    E --> F[Ambiente Unity]
+    E --> F[Unity environment]
     F --> A
-    F --> G[ExperimentManager: checkpoint e metriche]
-    G --> H[Log / stop / reset]
+    F --> G[ExperimentManager: evaluation only]
+    G --> H[Metrics, pause, and reset]
 ```
 
-| Componente | Compito |
+| Component | Responsibility |
 |---|---|
-| VehicleController | Motore fisico, sterzo e limite di velocità |
-| CameraCapture | RenderTexture frontale, richiesta URP esplicita, JPEG e timestamp |
-| JevProtocol / JevClient | Schema ufficiale, HTTP asincrono e parsing |
-| JevDecision | Sette etichette di sterzo e acceleratore |
-| AutonomousController | Manuale oppure JEV, scheduling, scarto risposte vecchie, budget |
-| ExperimentManager / LapCheckpoint | Valutazione indipendente, giri e reset |
-| TelemetryLogger / TelemetryHud | CSV/JSONL, frame, richieste, risposte e HUD |
-| SceneFactory / ProjectTools | Costruzione deterministica e verifica della scena |
-| RuntimeValidation | Prove riproducibili nel player |
+| `VehicleController` | Apply steering, acceleration, speed cap, and physics contacts |
+| `CameraCapture` | Render the front camera through URP, encode JPEG, and timestamp capture |
+| `JevProtocol` / `JevClient` | Build the structured request, send asynchronous HTTPS, and parse answers |
+| `AutonomousController` | Select mode, schedule requests, reject stale responses, and enforce API budgets |
+| `ExperimentManager` / `LapCheckpoint` | Evaluate progress and trigger pauses or resets |
+| `TelemetryLogger` / `TelemetryHud` | Save session evidence and display decisions and metrics |
+| `SceneFactory` / `ProjectTools` | Generate the scene, check its consistency, and build the player |
+| `RuntimeValidation` | Run scripted player checks |
 
-Il solo input dinamico di `JevProtocol.BuildRequest(byte[] jpeg, string model)` è il JPEG. `state` contiene `camera` e un'istruzione statica; le due domande condividono lo stesso frame. Il compito e la domanda sullo sterzo indicano la linea gialla tratteggiata come traiettoria: considerare più tratteggi consecutivi, anticipare la curvatura e sterzare dolcemente, usando i bordi se le strisce non sono chiare. La domanda sul gas e le etichette di risposta restano originali. L'invio dello stato dell'auto e le istruzioni relative a velocità, sterzo e rotazione sono stati rimossi su richiesta dell'utente. Non vengono passati posizione, velocità, waypoint, distanze, raycast, geometria o checkpoint. L'HUD e i trigger invisibili non compaiono nella camera del modello. La telemetria locale resta disponibile per HUD e log.
+`JevProtocol.BuildRequest(byte[] jpeg, string model)` receives no vehicle state. Its `state` contains an image reference and a static task. Two `choice` questions request steering and throttle from the same frame. Position, speed, yaw, applied steering, maps, raycasts, centerline distances, waypoints, and checkpoints are not sent. An intermediate vehicle-telemetry input was tried and then removed.
 
-Le risposte JEV sono l'unica sorgente di comandi automatici. La fisica usa il Rigidbody per applicarli; l'evaluator può interrompere o resettare un tentativo ma non corregge lo sterzo. Cambio modalità e reset invalidano le risposte pendenti. Il vecchio valore serializzato della modalità rimossa viene convertito in Manuale.
+JEV responses are the sole source of autonomous driving commands. The evaluator measures track position and checkpoints and can pause or reset an attempt; it does not choose steering or throttle. Mode changes, pause, and reset invalidate pending responses. See the [API guide](Documentation/JEV-API.md) for the exact prompt and command mapping.
 
-## API e guasti
+## Circuit and scenery
 
-JEV usa `POST https://api.typesafe.ai/v1/systemone`, Bearer authentication e l'header sperimentale `TypeSafe-Danger-Zone-Images: true`. Il JSON contiene un asset JPEG base64 con UUID referenziato in `state.camera`.
+The roughly **482.47 m** closed circuit follows a supplied outline, with a **12 m** road and turns in both directions. It includes **120 yellow dashes** at **4 m** intervals, **133 deterministic low-poly trees**, and **1,208 blue barrier segments**, each **1.5 m** tall. Trees are visual objects without colliders, placed beyond the barriers.
 
-Due domande `choice`: sterzo e accelerazione (`coast`, `slow`, `cruise`). La confidence mostrata è il minimo delle due confidence quando entrambe presenti; le distribuzioni restano nella risposta grezza. La frequenza reale dipende dalla latenza: non vengono accumulate richieste arretrate.
+Road meshes are saved under `Assets/JevVision/Generated`. Center dashes and trees are also added or updated at startup for older scenes. A geometry signature prevents driving when generated road geometry no longer matches the evaluation spline. See the [circuit guide](Documentation/Circuit.md).
 
-Durante l'attesa rimane l'ultimo comando valido, entro l'età massima del frame. Dopo la scadenza l'acceleratore viene rilasciato e l'auto procede per inerzia. Timeout, parsing invalido, risposte obsolete e budget esaurito non avviano altri metodi di guida. Gli errori temporanei applicano backoff e Retry-After; quelli permanenti sospendono le richieste fino alla riselezione della modalità.
+## API errors and recovery
 
-## Valutazione
+Requests use `POST https://api.typesafe.ai/v1/systemone`, Bearer authentication, and `TypeSafe-Danger-Zone-Images: true`. Each contains one base64 JPEG asset referenced by a UUID in `state.camera`.
 
-Un giro richiede i 16 checkpoint nell'ordine 1...15,0 e nel verso corretto. I contatori JEV/manuale richiedono modalità invariata e nessuna pausa/reset nel giro. Reset per uscita pista persistente, contatto grave con una barriera, posa invalida/ribaltamento, blocco o timeout. In manuale il controllo di blocco richiede che si stia tentando di accelerare. Senza chiave non vengono ripetuti reset da fermo. Dopo il budget di reset l'esperimento si mette in pausa.
+While a request is pending, the last valid command remains active until its frame expires. Missing or expired commands release the accelerator and use neutral steering; the vehicle coasts with rolling resistance. No offline autonomous fallback is used.
 
-## Log e costi
+For consecutive non-terminal failures, retry delays are **0.5, 1, 2, 4, 8, 16, then 30 seconds**, capped by `maximumBackoffSeconds`. A valid, timely response resets the error streak. `Retry-After` and the requested call interval can delay the next capture further. Retries capture a **fresh frame**, rather than resending an old image. No additional outage banner was added with this change.
 
-Ogni sessione ha una cartella UTC univoca in `%USERPROFILE%/AppData/LocalLow/JevVisionLab/JEV Vision Lab/Runs/`, oppure nell'Output Directory configurata. Le prove scrivono in `Validation/Runs/`.
+HTTP **400, 401, 402, 403, 404, 413, and 422** suspend requests until JEV mode is selected again. Correct the cause before retrying. Session call/cost limits also suspend new requests. A reset does not refill the session API budget.
 
-- `config.json`: parametri, senza chiave.
-- `telemetry.csv`: campioni a 5 Hz, comandi, velocità, confidence, API, latenze, token, costi, reset, giri e metriche di valutazione.
-- `decisions.jsonl`: decisione, timestamp di cattura/ricezione, esito applicazione/scarto, risposta grezza, HTTP, token ed errori.
-- `frames/*.jpg`: JPEG associato a ogni decisione, se abilitato.
-- `requests/*.json`: JSON realmente inviato, senza header Authorization o chiave.
-- `events.csv`: checkpoint, reset, modalità, pause e giri.
-- `report.json`, `front-final.jpg`, `overview-final.png`, `circuit-plan.png`: risultati delle prove.
+On November 1, a local session recorded intermittent **503** responses with `Image processing is unavailable.` See [validation status](Validation/RESULTS.md) for counts and limitations. TypeSafe's [image interface is experimental](https://docs.typesafe.ai/images).
 
-CSV con virgole, decimali con punto, stringhe quotate e timestamp UTC ISO-8601. Confidence -1 significa assente. Tariffa centralizzata nell'asset, verificata il 28 ottobre 2026: input $0,042 per milione di token, output gratuiti. Gli input token includono le immagini. Le stime usano esclusivamente usage effettivamente riportato; un utilizzo mancante è segnalato. I tassi sono medie di sessione; il costo per giro JEV include anche tentativi non riusciti della sessione. Il budget stimato non sostituisce i limiti del conto del provider.
+## Evaluation and logs
 
-## Prove riproducibili
+A lap requires the 16 checkpoints in order `1 ... 15, 0`, in the correct direction. A JEV or manual lap requires an unchanged mode and no pause or reset during that lap. Attempts reset after persistent off-track driving, severe collision, invalid pose, rollover, being stuck, or timeout. Manual stuck detection requires attempted acceleration. Reaching the reset limit pauses the experiment.
 
-`JEV Vision > Build Windows player and validate` compila ed esegue i controlli di protocollo, modalità e geometria. Da editor chiuso si può usare `Unity.exe -batchmode -projectPath "<progetto>" -executeMethod JevVision.Editor.ProjectTools.BuildAndValidate -logFile "<log>"`.
+Sessions are saved to `%USERPROFILE%/AppData/LocalLow/JevVisionLab/JEV Vision Lab/Runs/`, or the configured output directory. Validation scripts use the ignored `Validation/Runs/` directory.
+
+| Output | Contents |
+|---|---|
+| `config.json` | Session settings, without the key |
+| `telemetry.csv` | 5 Hz samples: controls, speed, confidence, API/token/cost counters, and evaluation metrics |
+| `decisions.jsonl` | Capture/receive times, decisions, application/discard outcome, HTTP status, raw response, and errors |
+| `frames/*.jpg` | Decision frames, if enabled |
+| `requests/*.json` | Actual request bodies, without Authorization headers |
+| `events.csv` | Mode changes, pauses, resets, checkpoints, and laps |
+| `report.json` and screenshots | Scripted validation results and captured views |
+
+Timestamps are UTC ISO 8601. CSV uses commas, decimal points, and quoted strings. Confidence `-1` means unavailable. Displayed confidence is the minimum of both answer confidences when both are present.
+
+The configured price card is **USD 0.042 per million input tokens**, with output tokens free. This matches the [TypeSafe models page](https://docs.typesafe.ai/models) checked November 1, 2026; the asset retains its October 28 check date. Estimates use returned `usage`; calls without reported usage are not fully represented by that estimate. Image tokens are included in input usage. The estimated budget is not a provider billing cap. Historical three-question costs do not establish the cost of the current two-question request.
+
+## Build and validate
+
+Generated executables are not included in Git. To create a current Windows player, use **JEV Vision → Build Windows player and validate**. This command **recreates the circuit scene before building**, so preserve manual scene edits in the generator before using it. It runs protocol/geometry checks and builds the player; gameplay validation is a separate step.
+
+With the editor closed, the equivalent batch entry point is:
+
+```text
+Unity.exe -batchmode -projectPath "<absolute path to My project>" -executeMethod JevVision.Editor.ProjectTools.BuildAndValidate -logFile "<log path>"
+```
+
+The player path is `Builds/Windows/JevVisionLab.exe`. From this directory:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/validate.ps1 -Test manual
+powershell -ExecutionPolicy Bypass -File scripts/play.ps1
+powershell -ExecutionPolicy Bypass -File scripts/play.ps1 -Mode manual
+```
+
+Both normal launch modes show the startup screen. Existing local executables may predate the current source; the latest source changes have not been followed by a new automated Windows build.
+
+Run player checks only after rebuilding the version you intend to test:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File scripts/validate.ps1 -Test setup
+powershell -ExecutionPolicy Bypass -File scripts/validate.ps1 -Test manual
 powershell -ExecutionPolicy Bypass -File scripts/validate.ps1 -Test frame
 powershell -ExecutionPolicy Bypass -File scripts/validate.ps1 -Test resets
 powershell -ExecutionPolicy Bypass -File scripts/validate.ps1 -Test no-key
+```
+
+These checks make no API calls. `setup` checks startup immobilization, explicit start, selected settings, the 0.8 m/s test speed cap, and passive slowing. `setup-jev` checks startup with a deliberately missing key; `setup-screen` captures the startup screen. `no-key` uses a deliberately nonexistent variable name without changing the user's key.
+
+The following tests **make API calls** and may consume credit:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File scripts/validate.ps1 -Test jev-frame
 powershell -ExecutionPolicy Bypass -File scripts/validate.ps1 -Test jev-smoke
 ```
 
-I test `setup`, `manual`, `frame`, `resets` e `no-key` non chiamano API. `setup` verifica auto bloccata e zero chiamate prima di Play, nessun avvio tramite scorciatoie, applicazione di modalità/frequenza/velocità e rispetto del limite di 0,8 m/s nella guida manuale. I test automatici avviano esplicitamente la guida; l'apertura normale del player passa sempre dalla schermata iniziale. `no-key` usa un nome di variabile inesistente per il solo processo, senza toccare la chiave dell'utente. `jev-frame` esegue al massimo una richiesta con la camera reale e veicolo bloccato. `jev-smoke` usa soltanto le decisioni JEV, al massimo 12 richieste e velocità limitata a 1 m/s. `-Test jev` tenta un giro e può consumare l'intero budget configurato. `scripts/test-jev-text.ps1` è il test curl testuale separato.
+`jev-frame` allows one camera request with the car held. `jev-smoke` permits up to 12 requests at a maximum speed of 1 m/s. `-Test jev` attempts a lap and may consume the full configured session budget. `scripts/test-jev-text.ps1` makes one separate text-only curl request.
 
-Non usare `-nographics`: le prove richiedono rendering reale. I report del 25 ottobre in `Validation/Evidence` e `Validation/CircuitEvidence` sono archivi storici e non dimostrano un giro guidato da JEV. Stato e risultati attuali sono in `Validation/RESULTS.md`.
+Do not add `-nographics`: validation needs rendered camera frames. Historical evidence is preserved under `Validation/Evidence`, `Validation/CircuitEvidence`, `Validation/JevEvidence`, and `Validation/TreesEvidence`. Read [RESULTS.md](Validation/RESULTS.md) before interpreting those reports as evidence of current behavior.
 
-## Troubleshooting e limiti
+## Troubleshooting
 
-- Senza chiave o con risposta non valida l'acceleratore resta rilasciato. Controllare lo stato API nell'HUD.
-- Dopo 401/402/403 correggere chiave o credito e riselezionare JEV. Per 429 consultare i limiti della propria organizzazione.
-- Se le risposte arrivano troppo tardi, controllare frame, latenza ed età massima del comando; regolare velocità e frequenza con sessioni nuove.
-- Entrambi i lati dell'immagine devono essere fra 280 e 1568 pixel. La cattura effettua rendering URP esplicito anche nei player batch.
-- Per la tastiera mettere il focus nella Game view. Il progetto usa il nuovo Input System.
-- Se appare Scena da rigenerare, usare il menu di ricostruzione e riavviare Play.
-- Le immagini JEV sono sperimentali. Una chiamata valida non dimostra che il modello sappia guidare o completare il giro: questi risultati vanno misurati nei log.
+- If the car does not start, press the in-game Play button and focus the Game view for keyboard input.
+- Without a valid key, JEV mode does not accelerate. Check the API status in the existing HUD.
+- After an authentication, credit, or request error suspends the API, correct the cause and select JEV mode again.
+- For intermittent 503 image-service errors, inspect `rawResponse` in the session's decision log. Faster retries reduce the recovery delay but cannot restore the provider's image service.
+- If decisions arrive too late, inspect latency and frame age before increasing driving speed or call frequency.
+- Image dimensions are clamped to 280–1568 pixels per side. Camera capture submits an explicit URP render request, including in batch players.
+- If **Scena da rigenerare** appears, rebuild the circuit scene and restart Play.
+- A successful API request or short drive does not establish reliable cornering or a completed autonomous lap.
