@@ -176,7 +176,7 @@ namespace JevVision
                         terminalApiError = true;
                 }
                 logger.RecordDecision(result.decision ?? JevDecision.Coast("api_error"), jpeg, result, outcome, capturedAt);
-                double backoff = consecutiveErrors == 0 ? 0 : Math.Min(config.maximumBackoffSeconds, Math.Pow(2, Math.Min(consecutiveErrors, 8)));
+                double backoff = consecutiveErrors == 0 ? 0 : Math.Min(config.maximumBackoffSeconds, 0.5 * Math.Pow(2, Math.Min(consecutiveErrors - 1, 8)));
                 nextDecision = Math.Max(capturedAt + 1.0 / config.decisionsPerSecond, Time.realtimeSinceStartupAsDouble + Math.Max(backoff, result.retryAfter));
             }
         }
